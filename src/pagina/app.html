@@ -862,7 +862,7 @@ function cartaoConta(item) {
             <td><button class="btn peq" data-rminj="${i}" title="Remover linha">✕</button></td></tr>`).join('')}
             <tr class="tot-inj"><td colspan="2"><button class="btn peq" data-addinj>+ Linha</button></td><td class="n" data-totk><b>${fmtN(k.compensadoKwh)}</b></td><td></td><td class="n" data-totv><b>${fmtR(k.valorCreditos)}</b></td><td></td></tr>
           </tbody></table></div>
-        <p class="pequeno" style="margin:6px 0 0">O valor de cada linha vem da conta. Se você mudar kWh ou tarifa, ele é recalculado (kWh × tarifa).</p>
+        <p class="pequeno" style="margin:6px 0 0">Seu desconto é aplicado só sobre estes valores. Os outros itens da conta da Energisa não entram no desconto. Se você mudar kWh ou tarifa, o valor é recalculado (kWh × tarifa).</p>
         <div class="secao">Cliente (quem recebe e paga a fatura)</div>
         <label class="campo">De quem é esta UC?<select data-cli><option value="">— Cadastrar novo cliente —</option>${S.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${esc(c.id)}" ${c.id === item.clienteId ? 'selected' : ''}>${esc(c.nome)}${c.documento ? ' · ' + esc(c.documento) : ''} (${ucsDe(c).length} UC)</option>`).join('')}</select></label>
         ${cli ? `<p class="pequeno" style="margin:8px 0 0">${temUc(cli, k.uc) ? `UC ${esc(k.uc)} já vinculada a ${esc(cli.nome)}.` : `<b style="color:var(--ink)">A UC ${esc(k.uc)} será vinculada a ${esc(cli.nome)}</b> ao gerar a fatura.`} · <a href="#clientes">ver cadastro</a></p>`

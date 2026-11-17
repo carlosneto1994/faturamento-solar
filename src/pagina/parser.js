@@ -155,8 +155,12 @@ function lerContaEnergisa(paginas) {
   // Conferência
   const soma = r.itens.reduce((s, i) => s + (i.valor || 0), 0);
   r.somaItens = Math.round(soma * 100) / 100;
-  if (r.totalConta != null && Math.abs(r.somaItens - r.totalConta) > 0.05) r.avisos.push(`A soma dos itens (R$ ${r.somaItens.toFixed(2)}) não bate com o total da conta (R$ ${r.totalConta.toFixed(2)}). Confira os itens.`);
-  if (!cred.length) r.avisos.push('Nenhuma energia compensada (injetada) encontrada nesta conta.');
+  // Conferência só da energia injetada (é sobre ela que o desconto é aplicado): kWh × tarifa deve dar o valor da linha
+  (r.injecoes || []).forEach(l => {
+    const calc = (l.kwh || 0) * (l.tarifa || 0);
+    if (Math.abs(calc - l.valor) > Math.max(0.05, l.valor * 0.001)) r.avisos.push(`Confira a linha de energia injetada ${l.gd}${l.origem ? ' ' + l.origem : ''}: ${l.kwh} kWh × ${String(l.tarifa).replace('.', ',')} não dá R$ ${l.valor.toFixed(2).replace('.', ',')}.`);
+  });
+  if (!cred.length) r.avisos.push('Não encontrei energia injetada nesta conta. Confira se é a conta certa ou preencha as linhas de energia injetada à mão.');
   if (!r.uc) r.avisos.push('Não encontrei o número da UC.');
   return r;
 }

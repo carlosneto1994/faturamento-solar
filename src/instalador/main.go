@@ -21,7 +21,7 @@ var programa []byte
 //go:embed icone.ico
 var icone []byte
 
-const versao = "1.0.4"
+var versao = "dev" // definida na compilação
 
 var (
 	user32     = syscall.NewLazyDLL("user32.dll")

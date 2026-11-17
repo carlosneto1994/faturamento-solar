@@ -4,7 +4,7 @@ Programa para gerar as faturas de energia solar a partir das contas da Energisa.
 
 ## Instalar
 
-Baixe **Instalar-Faturamento-Solar.exe** na [versão mais recente](../../releases/latest) e dê dois cliques.
+Baixe o [**Instalar-Faturamento-Solar.exe**](Instalar-Faturamento-Solar.exe) (botão "Download raw") e dê dois cliques.
 O atalho aparece na área de trabalho.
 
 ## Atualizações

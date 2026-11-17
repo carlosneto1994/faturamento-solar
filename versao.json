@@ -1,9 +1,9 @@
 {
   "versao": "1.1.0",
-  "notas": "Atualização automática",
+  "notas": "Atualização automática: o programa passa a se atualizar sozinho.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://github.com/carlosneto1994/faturamento-solar/releases/download/v1.1.0/FaturamentoSolar.exe",
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.0/FaturamentoSolar.exe",
       "sha256": "a1020457f5fab057ff13a5748a80618e8f60034b0c6ac2f04c05d8ef43d1e65f"
     }
   }

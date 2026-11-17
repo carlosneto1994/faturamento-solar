@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faturamento de Energia Solar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f6f5; --card:#fff; --ink:#15211c; --muted:#5d6b65; --line:#dfe5e2;
+  --pri:#12715b; --pri-2:#0d5847; --pri-soft:#e6f2ee; --sun:#f2a900; --sun-soft:#fff6dc;
+  --red:#c2412d; --red-soft:#fdecea; --blue:#2563a8;
+  --r:12px; --sh:0 1px 2px rgba(16,30,24,.06),0 4px 16px rgba(16,30,24,.05);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--pri)}
+.topo{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+.topo .in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:10px 20px;flex-wrap:wrap}
+.marca{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px;min-width:0}
+.marca img{height:34px;max-width:120px;object-fit:contain}
+.marca .sol{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--sun),#f7c948);display:grid;place-items:center;color:#5a3d00;font-weight:800}
+nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+nav a{text-decoration:none;color:var(--muted);padding:8px 12px;border-radius:8px;font-weight:500}
+nav a:hover{background:var(--bg);color:var(--ink)}
+nav a.on{background:var(--pri-soft);color:var(--pri-2);font-weight:600}
+main{max-width:1180px;margin:0 auto;padding:22px 20px 80px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:16px;margin:0 0 12px}
+.sub{color:var(--muted);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh);padding:18px}
+.linha{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.esp{flex:1}
+.btn{text-decoration:none;border:1px solid var(--line);background:var(--card);padding:8px 14px;border-radius:9px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:#bfcac5}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--pri-2)}
+.btn.sun{background:var(--sun);border-color:var(--sun);color:#3d2a00}
+.btn.perigo{color:var(--red)}
+.btn.peq{padding:5px 10px;font-size:13px}
+.btn:disabled{opacity:.5;cursor:default}
+label.campo{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted);font-weight:500}
+label.campo input,label.campo select,label.campo textarea{border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:#fff;color:var(--ink);font-size:14px;min-width:0}
+label.campo input:focus,label.campo select:focus,label.campo textarea:focus{outline:2px solid var(--pri-soft);border-color:var(--pri)}
+.grade{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}}
+@media (max-width:480px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh)}
+.tile .k{font-size:12px;color:var(--muted);font-weight:500}
+.tile .v{font-size:21px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+.tile.verde .v{color:var(--pri)}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;color:var(--muted);font-weight:600;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:10px;border-bottom:1px solid #edf1ef;vertical-align:middle}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tr.click{cursor:pointer}
+tr.click:hover td{background:#f8faf9}
+.tabela{overflow-x:auto}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600}
+.b-aberta{background:var(--sun-soft);color:#8a5d00}
+.b-paga{background:var(--pri-soft);color:var(--pri-2)}
+.b-atrasada{background:var(--red-soft);color:var(--red)}
+.vazio{text-align:center;color:var(--muted);padding:40px 10px}
+.drop{display:block;border:2px dashed #b9c8c1;border-radius:var(--r);background:#fbfdfc;padding:34px 20px;text-align:center;cursor:pointer;transition:.15s}
+.drop.on,.drop:hover{border-color:var(--pri);background:var(--pri-soft)}
+.drop b{font-size:16px}
+.aviso{background:var(--sun-soft);border:1px solid #f3dc9a;color:#6b4a00;border-radius:9px;padding:9px 12px;font-size:13px;margin:8px 0}
+.aviso.erro{background:var(--red-soft);border-color:#f2c2bb;color:#8f2a1b}
+.aviso.ok{background:var(--pri-soft);border-color:#bfe0d5;color:var(--pri-2)}
+.conta{margin-top:16px}
+.conta-cab{display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
+.conta-cab .t{font-weight:700;font-size:15px}
+.conta-cab .m{color:var(--muted);font-size:13px}
+.cols{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+.secao{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:14px 0 8px}
+.calc{background:#f8faf9;border:1px solid var(--line);border-radius:10px;padding:14px}
+.calc .l{display:flex;justify-content:space-between;padding:4px 0;font-variant-numeric:tabular-nums}
+.calc .l.tot{border-top:1px solid var(--line);margin-top:6px;padding-top:9px;font-weight:700;font-size:16px}
+.calc .l.eco{color:var(--pri);font-weight:600}
+.calc .l.neg{color:var(--red)}
+.overlay{position:fixed;inset:0;background:rgba(10,20,16,.45);display:flex;align-items:flex-start;justify-content:center;padding:30px 14px;z-index:50;overflow:auto}
+.modal{background:var(--card);border-radius:14px;max-width:980px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal .cab{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.modal .corpo{padding:18px}
+.modal.peq{max-width:460px}
+.prev{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px}
+@media (max-width:820px){.prev{grid-template-columns:1fr}}
+.prev img{width:100%;border:1px solid var(--line);border-radius:6px;box-shadow:var(--sh);background:#fff}
+.lado .btn{width:100%;justify-content:center;margin-bottom:8px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#15211c;color:#fff;padding:10px 16px;border-radius:10px;z-index:80;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw}
+.logo-prev{width:200px;height:90px;border:1px dashed var(--line);border-radius:10px;display:grid;place-items:center;background:#fff;overflow:hidden}
+.logo-prev img{max-width:180px;max-height:76px}
+.pequeno{font-size:12.5px;color:var(--muted)}
+.chk{display:flex;gap:8px;align-items:center;font-size:13.5px}
+.faixa.ok{background:var(--pri-soft);border-bottom-color:#bfe0d5;color:var(--pri-2)}
+.faixa .btn{margin-left:10px;padding:4px 12px}
+.faixa{background:var(--sun-soft);border-bottom:1px solid #f3dc9a;color:#6b4a00;font-size:13px;padding:8px 20px;text-align:center}
+.carregando{display:inline-block;width:14px;height:14px;border:2px solid #cfd8d4;border-top-color:var(--pri);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px}
+@keyframes g{to{transform:rotate(360deg)}}
+.oculto{display:none!important}
+table.inj td{padding:5px 6px}table.inj th{padding:6px}
+table.inj input,table.inj select{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff;font-size:13px}
+table.inj tr.tot-inj td{border-bottom:none}
+.legenda{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin:-4px 0 6px}
+.legenda span{display:inline-flex;align-items:center;gap:6px}
+.legenda i,.dica i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.graf svg{display:block;font-family:Inter,system-ui,sans-serif}
+.dica{position:fixed;z-index:90;background:#fff;border:1px solid var(--line);border-radius:9px;box-shadow:0 8px 24px rgba(16,30,24,.14);padding:8px 11px;font-size:12.5px;line-height:1.55;pointer-events:none;font-variant-numeric:tabular-nums}
+.tile .pequeno{margin-top:2px}
+.tile.alerta .v{color:var(--red)}
+.rank{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:12px;align-items:center;padding:9px 6px;border-bottom:1px solid #edf1ef;cursor:pointer;border-radius:8px}
+.rank:hover{background:#f8faf9}
+.rk-n{display:flex;flex-direction:column;min-width:0}.rk-n b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rk-b{height:10px;background:#f0f3f2;border-radius:5px;overflow:hidden}.rk-b div{height:100%;background:#2a78d6;border-radius:0 4px 4px 0}
+.rk-v{font-weight:700;font-variant-numeric:tabular-nums;min-width:96px;text-align:right}
+</style>
+</head>
+<body>
+<div id="faixa" class="faixa oculto"></div>
+<div id="faixaAtual" class="faixa ok oculto"></div>
+<header class="topo"><div class="in">
+  <div class="marca" id="marca"><div class="sol">☀</div><span>Faturamento Solar</span></div>
+  <nav id="nav">
+    <a href="#painel" data-r="painel">Painel</a>
+    <a href="#faturas" data-r="faturas">Faturas</a>
+    <a href="#nova" data-r="nova">Nova fatura</a>
+    <a href="#clientes" data-r="clientes">Clientes</a>
+    <a href="#empresa" data-r="empresa">Minha empresa</a>
+  </nav>
+</div></header>
+<main id="app"><p class="vazio"><span class="carregando"></span> Carregando…</p></main>
+<div id="modais"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+/*__QR__*/
+</script>
+<script>
+/*__PARSER__*/
+</script>
+<script>
+"use strict";
+// ======================= Utilidades =======================
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const r2 = v => Math.round((+v || 0) * 100) / 100;
+const fmtR = v => (v == null || isNaN(v)) ? '—' : (+v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmtN = (v, d = 0) => (v == null || isNaN(v)) ? '—' : (+v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtP = v => (v == null || isNaN(v)) ? '—' : (v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+const soDig = s => String(s || '').replace(/\D/g, '');
+const MESES_N = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const refTxt = (m, a) => m && a ? `${MESES_N[m - 1]}/${a}` : '—';
+const refKey = (m, a) => `${a}-${String(m).padStart(2, '0')}`;
+const parseBR = s => { if (typeof s === 'number') return s; s = String(s || '').trim(); if (!s) return null; s = s.replace(/[^\d,.-]/g, ''); if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.'); const v = parseFloat(s); return isNaN(v) ? null : v; };
+const dataBR = d => { const z = n => String(n).padStart(2, '0'); return `${z(d.getDate())}/${z(d.getMonth() + 1)}/${d.getFullYear()}`; };
+const deBR = s => { const m = String(s || '').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+const hoje0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+const numBR = v => (v == null || isNaN(v)) ? '' : String(r2(v)).replace('.', ',');
+function toast(msg, ms = 2600) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
+
+// ======================= Dados =======================
+const S = { clientes: [], faturas: [], empresa: {}, pronto: { c: false, f: false, e: false }, db: null, down: null, nuvem: false };
+const EMPRESA_PADRAO = { nome: 'Minha Empresa Solar', cnpj: '', endereco: '', telefone: '', email: '', cor: '#12715b', pixChave: '', pixNome: '', pixCidade: '', proximoNumero: 1, diasVencimento: 10, mensagem: 'Obrigado por gerar energia limpa com a gente!', logo: '' };
+const emp = () => Object.assign({}, EMPRESA_PADRAO, S.empresa || {});
+
+const memoria = { // reserva local quando a nuvem não está disponível
+  ler() { try { return JSON.parse(localStorage.getItem('fatsolar') || '{}'); } catch (e) { return {}; } },
+  gravar() { try { localStorage.setItem('fatsolar', JSON.stringify({ clientes: S.clientes, faturas: S.faturas, empresa: S.empresa })); } catch (e) {} }
+};
+
+// ----- Versão instalada no computador: dados num arquivo local, via o próprio programa -----
+const API = {
+  async req(metodo, url, corpo, tipo) {
+    const r = await fetch(url, { method: metodo, body: corpo, headers: tipo ? { 'Content-Type': tipo } : {} });
+    if (!r.ok) { const e = new Error('Falha ao gravar (' + r.status + ')'); e.code = 'local'; throw e; }
+    return r.headers.get('content-type')?.includes('json') ? r.json() : r.text();
+  },
+  gravar(col, id, dados) { return this.req('PUT', `/api/doc/${col}/${encodeURIComponent(id)}`, JSON.stringify(dados), 'application/json'); },
+  apagar(col, id) { return this.req('DELETE', `/api/doc/${col}/${encodeURIComponent(id)}`); }
+};
+async function iniciarLocal() {
+  const d = await API.req('GET', '/api/dados');
+  S.local = true; S.clientes = d.clientes || []; S.faturas = d.faturas || []; S.empresa = d.empresa || {}; S.pastas = d.pastas || {};
+  S.pronto = { c: true, f: true, e: true };
+  S.down = { save: async ({ filename, data }) => {
+    const blob = data instanceof Blob ? data : new Blob([data]);
+    const r = await API.req('POST', '/api/arquivo?nome=' + encodeURIComponent(filename), blob, 'application/octet-stream');
+    toast('Salvo em ' + r.caminho, 5000); return { status: 'saved' };
+  } };
+  setInterval(() => fetch('/api/ping', { method: 'POST' }).catch(() => {}), 20000); fetch('/api/ping', { method: 'POST' }).catch(() => {});
+  setTimeout(checarAtualizacao, 6000); setInterval(checarAtualizacao, 60000);
+  aplicarMarca(); render();
+}
+// Atualização automática (programa instalado)
+async function checarAtualizacao() {
+  try {
+    const a = await (await fetch('/api/atualizacao')).json(); S.atualizacao = a;
+    const f = $('#faixaAtual');
+    if (a.status === 'pronta') {
+      f.innerHTML = `Nova versão ${esc(a.nova)} instalada${a.notas ? ': ' + esc(a.notas) : ''}. <button class="btn pri" id="bReini">Reiniciar agora</button>`;
+      f.classList.remove('oculto'); $('#bReini').onclick = reiniciarPrograma;
+    } else f.classList.add('oculto');
+    const v = $('#verProg'); if (v) v.innerHTML = textoVersao(a);
+  } catch (e) {}
+}
+function textoVersao(a) {
+  if (!a) return '';
+  const st = { verificando: 'procurando atualização…', baixando: `baixando a versão ${esc(a.nova || '')}…`, pronta: `versão ${esc(a.nova)} pronta, reinicie para usar`, atualizado: 'você está na versão mais recente', erro: 'não consegui verificar agora' + (a.erro ? ` (${esc(a.erro)})` : ''), ocioso: '' }[a.status] || '';
+  return `Versão do programa: <b>${esc(a.versao)}</b>${st ? ' · ' + st : ''}${a.checado ? ` · verificado em ${esc(a.checado)}` : ''}`;
+}
+async function reiniciarPrograma() {
+  if (pendencias() && !(await confirmar('Reiniciar agora?', 'Há contas importadas ainda não geradas. Elas serão descartadas ao reiniciar.', 'Reiniciar'))) return;
+  const f = $('#faixaAtual'); f.innerHTML = '<span class="carregando"></span> Reiniciando na versão nova…';
+  fila.length = 0; empresaPendente = false;
+  try { await fetch('/api/reiniciar', { method: 'POST' }); } catch (e) {}
+  const ini = Date.now();
+  const espera = async () => { try { const r = await fetch('/api/atualizacao'); const a = await r.json(); if (a.status !== 'pronta') { location.reload(); return; } } catch (e) {} if (Date.now() - ini < 40000) setTimeout(espera, 1000); else f.textContent = 'Não consegui reiniciar. Feche e abra o programa de novo.'; };
+  setTimeout(espera, 1500);
+}
+async function iniciarDados() {
+  if (window.LOCAL_API) { try { await iniciarLocal(); } catch (e) { faixa('O programa não respondeu. Feche esta janela e abra o Faturamento Solar de novo.'); } return; }
+  let db = null;
+  try { db = window.claude ? await Promise.race([claude.use('db'), new Promise(r => setTimeout(() => r(null), 10000))]) : null; } catch (e) { db = null; }
+  try { S.down = window.claude ? await claude.use('downloads') : null; } catch (e) { S.down = null; }
+  if (!db) {
+    const m = memoria.ler();
+    S.clientes = m.clientes || []; S.faturas = m.faturas || []; S.empresa = m.empresa || {};
+    S.pronto = { c: true, f: true, e: true };
+    faixa('Atenção: o armazenamento na nuvem não está disponível nesta visualização. Os dados ficam só neste navegador e podem ser perdidos.');
+    render(); return;
+  }
+  S.db = db; S.nuvem = true;
+  const timer = setTimeout(() => { if (!(S.pronto.c && S.pronto.f && S.pronto.e)) faixa('Não consegui carregar os dados ainda. Verifique sua conexão.'); }, 10000);
+  const pronto = () => { if (S.pronto.c && S.pronto.f && S.pronto.e) { clearTimeout(timer); faixa(''); } render(); };
+  const erro = e => { faixa('Erro ao acessar os dados (' + (e && e.code || 'desconhecido') + '). Recarregue a página.'); };
+  db.collection('clientes').onSnapshot(s => { S.clientes = s.docs.map(d => ({ id: d.id, ...d.data() })); if (!s.metadata.fromCache) S.pronto.c = true; pronto(); }, erro);
+  db.collection('faturas').onSnapshot(s => { S.faturas = s.docs.map(d => ({ id: d.id, ...d.data() })); if (!s.metadata.fromCache) S.pronto.f = true; pronto(); }, erro);
+  db.doc('config/empresa').onSnapshot(s => { S.empresa = s.exists ? s.data() : {}; if (!s.metadata.fromCache) S.pronto.e = true; aplicarMarca(); pronto(); }, erro);
+}
+function faixa(t) { const f = $('#faixa'); f.textContent = t; f.classList.toggle('oculto', !t); }
+
+async function salvar(col, id, dados) {
+  if (S.local) {
+    await API.gravar(col, id, dados);
+    const arr = S[col]; const i = arr.findIndex(x => x.id === id); const reg = { id, ...dados }; if (i >= 0) arr[i] = reg; else arr.push(reg); render();
+  } else if (S.db) {
+    try { await S.db.collection(col).doc(id).set(dados); }
+    catch (e) { if (e && e.code === 'unavailable') { await new Promise(r => setTimeout(r, 600 + Math.random() * 600)); await S.db.collection(col).doc(id).set(dados); } else throw e; }
+  } else {
+    const arr = S[col]; const i = arr.findIndex(x => x.id === id);
+    const reg = { id, ...dados }; if (i >= 0) arr[i] = reg; else arr.push(reg); memoria.gravar(); render();
+  }
+}
+async function apagar(col, id) {
+  if (S.local) { await API.apagar(col, id); S[col] = S[col].filter(x => x.id !== id); render(); }
+  else if (S.db) await S.db.collection(col).doc(id).delete();
+  else { S[col] = S[col].filter(x => x.id !== id); memoria.gravar(); render(); }
+}
+async function salvarEmpresa(dados) {
+  const novo = Object.assign({}, S.empresa || {}, dados);
+  if (S.local) { await API.gravar('config', 'empresa', novo); S.empresa = novo; aplicarMarca(); render(); }
+  else if (S.db) await S.db.doc('config/empresa').set(novo);
+  else { S.empresa = novo; memoria.gravar(); aplicarMarca(); render(); }
+}
+function erroGravar(e) {
+  const c = e && e.code;
+  if (c === 'quota_exceeded') toast('Limite de armazenamento atingido. Apague faturas antigas.', 5000);
+  else if (c === 'invalid_argument') toast('Você não tem permissão para alterar estes dados.', 5000);
+  else toast('Não foi possível salvar. Tente de novo.', 4000);
+  console.error(e);
+}
+const novoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+// ======================= Cálculo =======================
+const MODELOS = {
+  percentual_creditos: 'Desconto % sobre a energia injetada',
+  percentual_tarifa: 'Desconto % sobre a tarifa cheia de consumo',
+  preco_kwh: 'Preço fixo por kWh compensado'
+};
+// Linhas de energia injetada: kWh × tarifa do mês = valor. Recalcula os totais da conta a partir delas.
+function sincronizarInjecoes(k) {
+  if (!Array.isArray(k.injecoes)) return;
+  const ls = k.injecoes;
+  k.compensadoKwh = ls.reduce((s2, l) => s2 + (+l.kwh || 0), 0);
+  k.valorCreditos = r2(ls.reduce((s2, l) => s2 + (+l.valor || 0), 0));
+  const g = {};
+  for (const l of ls) { const gd = l.gd === 'GD II' ? 'GD II' : 'GD I'; const x = g[gd] || (g[gd] = { gd, kwh: 0, valor: 0, tarifas: [] }); x.kwh += +l.kwh || 0; x.valor += +l.valor || 0; if (+l.tarifa && !x.tarifas.includes(+l.tarifa)) x.tarifas.push(+l.tarifa); }
+  k.creditosPorTipo = Object.values(g).map(x => ({ gd: x.gd, kwh: x.kwh, valor: r2(x.valor), tarifa: x.tarifas.length === 1 ? x.tarifas[0] : null })).sort((a, b) => a.gd.localeCompare(b.gd));
+}
+const fmtTarifa = v => (v == null || isNaN(v)) ? '—' : 'R$ ' + (+v).toLocaleString('pt-BR', { minimumFractionDigits: 5, maximumFractionDigits: 6 });
+// Grupos de energia injetada (GD I / GD II) lidos da conta; se os valores foram editados à mão, vira um grupo só
+function gruposInjetada(conta) {
+  const kwh = +conta.compensadoKwh || 0, creditos = +conta.valorCreditos || 0;
+  const g = (conta.creditosPorTipo || []).filter(x => x && x.valor > 0);
+  const soma = r2(g.reduce((s2, x) => s2 + x.valor, 0)), somaK = g.reduce((s2, x) => s2 + (x.kwh || 0), 0);
+  if (g.length && Math.abs(soma - creditos) < 0.02 && Math.abs(somaK - kwh) < 0.5) return g.map(x => ({ gd: x.gd === 'GD II' ? 'GD II' : 'GD I', kwh: x.kwh || 0, valor: x.valor, tarifa: x.tarifa ?? null }));
+  return [{ gd: g.length === 1 && g[0].gd === 'GD II' ? 'GD II' : 'GD I', kwh, valor: creditos }];
+}
+const descGD = (cli) => (+cli.desconto || 0) / 100; // o mesmo desconto vale para GD I e GD II
+function calcular(conta, cli) {
+  const kwh = +conta.compensadoKwh || 0;
+  const creditos = +conta.valorCreditos || 0;
+  const totalConta = +conta.totalConta || 0;
+  const modelo = cli.modelo || 'percentual_creditos';
+  let base, valorUsina, descontoValor, grupos = [];
+  if (modelo === 'preco_kwh') { base = creditos; valorUsina = kwh * (+cli.precoKwh || 0); descontoValor = base - valorUsina; }
+  else {
+    // Soma toda a energia injetada, aplicando o desconto de cada modalidade (GD I e GD II)
+    grupos = gruposInjetada(conta).map(g => {
+      const gb = modelo === 'percentual_tarifa' ? g.kwh * (+conta.tarifaConsumo || 0) : g.valor;
+      const d = descGD(cli, g.gd); const dv = r2(gb * d);
+      return { gd: g.gd, kwh: g.kwh, tarifa: modelo === 'percentual_tarifa' ? (+conta.tarifaConsumo || 0) : (g.tarifa ?? null), base: r2(gb), descontoPct: d, descontoValor: dv, valorUsina: r2(gb - dv) };
+    });
+    base = r2(grupos.reduce((s2, g) => s2 + g.base, 0)); descontoValor = r2(base * descGD(cli)); valorUsina = base - descontoValor;
+  }
+  base = r2(base); valorUsina = r2(valorUsina); descontoValor = r2(descontoValor);
+  const ajuste = +conta.ajusteGD || 0;
+  const semUsina = r2(totalConta + creditos - ajuste);
+  const comUsina = r2(totalConta + valorUsina);
+  const economia = r2(semUsina - comUsina);
+  const incluir = !!cli.incluirEnergisa;
+  const valorCobrado = r2(valorUsina + (incluir ? totalConta : 0));
+  const descontoPct = modelo === 'preco_kwh' ? null : (base ? descontoValor / base : descGD(cli, 'GD I'));
+  return { modelo, kwh, creditos, base, grupos, descontoPct, precoKwh: modelo === 'preco_kwh' ? +cli.precoKwh || 0 : null, descontoValor, valorUsina, totalConta, semUsina, comUsina, economia, economiaPct: semUsina ? economia / semUsina : 0, incluirEnergisa: incluir, valorCobrado };
+}
+// Texto do desconto: "15%" ou "GD I 15% · GD II 12%"
+function textoDesconto(V) {
+  if (V.modelo === 'preco_kwh') return fmtR(V.precoKwh) + '/kWh';
+  return fmtP(V.descontoPct);
+}
+
+// ======================= PIX (BR Code estático) =======================
+function semAcento(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 .\-]/g, '').trim(); }
+function crc16(str) { let crc = 0xFFFF; for (let i = 0; i < str.length; i++) { crc ^= str.charCodeAt(i) << 8; for (let j = 0; j < 8; j++) crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF; } return crc.toString(16).toUpperCase().padStart(4, '0'); }
+function normalizarChave(k) {
+  k = String(k || '').trim(); if (!k) return '';
+  if (k.includes('@')) return k.toLowerCase();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k)) return k.toLowerCase();
+  const d = soDig(k);
+  if (k.startsWith('+')) return '+' + d;
+  if (/[()\s-]/.test(k) && (d.length === 10 || d.length === 11) && !/^\d{3}\.\d{3}/.test(k)) return '+55' + d;
+  if (d.length === 11 || d.length === 14) return d;
+  if (d.length === 10) return '+55' + d;
+  return k;
+}
+function pixPayload({ chave, nome, cidade, valor, txid }) {
+  const f = (id, v) => id + String(v.length).padStart(2, '0') + v;
+  const ch = normalizarChave(chave); if (!ch) return '';
+  const mai = f('00', 'br.gov.bcb.pix') + f('01', ch);
+  let p = f('00', '01') + f('26', mai) + f('52', '0000') + f('53', '986');
+  if (valor > 0) p += f('54', (+valor).toFixed(2));
+  p += f('58', 'BR') + f('59', (semAcento(nome).toUpperCase() || 'RECEBEDOR').slice(0, 25)) + f('60', (semAcento(cidade).toUpperCase() || 'BRASIL').slice(0, 15));
+  p += f('62', f('05', (String(txid || '***').replace(/[^A-Za-z0-9]/g, '') || '***').slice(0, 25)));
+  p += '6304';
+  return p + crc16(p);
+}
+function tokensNome(n) { return semAcento(n).toLowerCase().split(/\s+/).filter(t => t.length > 2); }
+function nomesParecidos(a, b) { const ta = tokensNome(a), tb = new Set(tokensNome(b)); if (!ta.length || !tb.size) return false; const comuns = ta.filter(t => tb.has(t)).length; return comuns / Math.min(ta.length, tb.size) >= 0.75; }
+// Escolhe a chave Pix pela pessoa titular da conta de energia (CPF ou nome); se não houver, usa a da empresa
+function escolherPix(E, conta) {
+  const lista = (E.pixTitulares || []).filter(t => t && t.chave);
+  const doc = soDig(conta.documento || conta.titularDoc || '');
+  let t = doc && lista.find(x => soDig(x.cpf) === doc || soDig(x.chave) === doc);
+  const nome = conta.titular || conta.nome || '';
+  if (!t && nome) t = lista.find(x => nomesParecidos(nome, x.titular));
+  if (t) return { chave: t.chave, nome: t.recebedor || t.titular, cidade: t.cidade || E.pixCidade || '', titular: t.titular, porTitular: true };
+  return E.pixChave ? { chave: E.pixChave, nome: E.pixNome || E.nome, cidade: E.pixCidade || '', titular: '', porTitular: false } : null;
+}
+function qrMatriz(texto) { const q = new QRLib.QRCode(-1, QRLib.ECL.M); q.addData(texto); q.make(); const n = q.getModuleCount(); const m = []; for (let r = 0; r < n; r++) { m.push([]); for (let c = 0; c < n; c++) m[r].push(q.isDark(r, c)); } return m; }
+
+// ======================= Leitura do PDF =======================
+async function lerPdf(arquivo) {
+  if (!window.pdfjsLib) throw new Error('Leitor de PDF não carregou. Verifique a conexão e recarregue.');
+  const buf = await arquivo.arrayBuffer();
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf), isEvalSupported: false }).promise;
+  const paginas = [];
+  for (let p = 1; p <= Math.min(doc.numPages, 4); p++) {
+    const pg = await doc.getPage(p); const tc = await pg.getTextContent();
+    paginas.push(tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5], w: i.width })));
+  }
+  return lerContaEnergisa(paginas);
+}
+
+// ======================= Desenho da fatura (canvas A4) =======================
+const A4 = { w: 1654, h: 2339 }; const MM = A4.w / 210;
+function hexRgb(h) { const m = String(h || '').match(/^#?([0-9a-f]{6})$/i); if (!m) return [18, 113, 91]; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function mistura(h, f) { const [r, g, b] = hexRgb(h); const t = x => Math.round(x + (255 - x) * f); return `rgb(${t(r)},${t(g)},${t(b)})`; }
+function carregarImg(src) { return new Promise(res => { if (!src) return res(null); const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = src; }); }
+
+async function desenharFatura(fat) {
+  try { await Promise.all([document.fonts.load('400 20px Inter'), document.fonts.load('700 20px Inter'), document.fonts.load('800 20px Inter')]); } catch (e) {}
+  const E = fat.empresa || emp(); const C = fat.cliente; const K = fat.conta; const V = fat.calculo;
+  const cor = E.cor || '#12715b'; const corClara = mistura(cor, .9); const corMedia = mistura(cor, .55);
+  const cv = document.createElement('canvas'); cv.width = A4.w; cv.height = A4.h;
+  const g = cv.getContext('2d');
+  const mm = v => v * MM;
+  const FONTE = 'Inter, "Helvetica Neue", Arial, sans-serif';
+  const font = (pt, w = 400) => { g.font = `${w} ${mm(pt * 0.3528)}px ${FONTE}`; };
+  const txt = (s, x, y, o = {}) => { font(o.pt || 9, o.w || 400); g.fillStyle = o.cor || '#15211c'; g.textAlign = o.al || 'left'; g.textBaseline = o.bl || 'alphabetic'; g.fillText(String(s ?? ''), mm(x), mm(y)); };
+  const largura = (s, pt, w) => { font(pt, w); return g.measureText(String(s)).width / MM; };
+  const rr = (x, y, w, h, r, fill, stroke) => { g.beginPath(); g.roundRect(mm(x), mm(y), mm(w), mm(h), mm(r)); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.lineWidth = mm(.25); g.stroke(); } };
+  const ln = (x1, y1, x2, y2, c = '#dfe5e2', w = .25) => { g.beginPath(); g.moveTo(mm(x1), mm(y1)); g.lineTo(mm(x2), mm(y2)); g.strokeStyle = c; g.lineWidth = mm(w); g.stroke(); };
+  const quebra = (s, maxW, pt, w) => { const pal = String(s || '').split(/\s+/); const out = []; let l = ''; for (const p of pal) { const t = l ? l + ' ' + p : p; if (largura(t, pt, w) > maxW && l) { out.push(l); l = p; } else l = t; } if (l) out.push(l); return out; };
+  const cortar = (s, maxW, pt, w) => { s = String(s || ''); if (largura(s, pt, w) <= maxW) return s; while (s.length > 1 && largura(s + '…', pt, w) > maxW) s = s.slice(0, -1); return s + '…'; };
+
+  g.fillStyle = '#fff'; g.fillRect(0, 0, A4.w, A4.h);
+  const X0 = 14, X1 = 196, W = X1 - X0;
+
+  // Faixa superior
+  g.fillStyle = cor; g.fillRect(0, 0, A4.w, mm(5));
+  // Logo e empresa
+  const logo = await carregarImg(E.logo);
+  let yTop = 11; let xEmp = X0;
+  if (logo) { const mw = 58, mh = 24; const s = Math.min(mw / logo.width, mh / logo.height); const lw = logo.width * s, lh = logo.height * s; g.drawImage(logo, mm(X0), mm(yTop), mm(lw), mm(lh)); xEmp = X0 + lw + 6; }
+  const linhasEmp = [];
+  if (!logo) txt(E.nome, X0, yTop + 8, { pt: 17, w: 800, cor });
+  else linhasEmp.push([E.nome, 10, 700, '#15211c']);
+  if (E.cnpj) linhasEmp.push(['CNPJ ' + E.cnpj, 7.5, 400, '#5d6b65']);
+  if (E.endereco) linhasEmp.push([E.endereco, 7.5, 400, '#5d6b65']);
+  const contato = [E.telefone, E.email].filter(Boolean).join('  ·  '); if (contato) linhasEmp.push([contato, 7.5, 400, '#5d6b65']);
+  let ye = logo ? yTop + 5 : yTop + 14;
+  const maxEmpW = 118 - (xEmp - X0);
+  for (const [t, pt, w, c] of linhasEmp) { txt(cortar(t, maxEmpW, pt, w), xEmp, ye, { pt, w, cor: c }); ye += pt * 0.3528 * 1.55; }
+  // Caixa da fatura
+  txt('FATURA DE ENERGIA', X1, yTop + 4, { pt: 8, w: 700, cor: corMedia, al: 'right' });
+  txt('Nº ' + fat.numeroTxt, X1, yTop + 11, { pt: 15, w: 800, al: 'right' });
+  txt('Emitida em ' + fat.emissao, X1, yTop + 17, { pt: 7.5, cor: '#5d6b65', al: 'right' });
+
+  // Destaques
+  let y = 38;
+  const cw = (W - 8) / 3;
+  const destaques = [['REFERÊNCIA', refTxt(K.mesRef, K.anoRef)], ['VENCIMENTO', fat.vencimento], ['TOTAL A PAGAR', fmtR(V.valorCobrado)]];
+  destaques.forEach(([k, v], i) => {
+    const x = X0 + i * (cw + 4); const ult = i === 2;
+    rr(x, y, cw, 18, 3, ult ? cor : corClara);
+    txt(k, x + 5, y + 6.5, { pt: 7, w: 700, cor: ult ? 'rgba(255,255,255,.85)' : corMedia });
+    txt(v, x + 5, y + 14, { pt: ult ? 15 : 12.5, w: 800, cor: ult ? '#fff' : '#15211c' });
+  });
+
+  // Cliente
+  y = 65;
+  txt('CLIENTE', X0, y, { pt: 7, w: 700, cor: '#5d6b65' });
+  txt(cortar(C.nome, W, 11.5, 700), X0, y + 6.3, { pt: 11.5, w: 700 });
+  const titular = C.titular || K.titular || '';
+  const infoCli = [
+    ['CPF/CNPJ', C.documento || '—', 36], ['Unidade consumidora (UC)', C.uc || K.uc || '—', 38],
+    ['Titular da conta de energia', titular || '—', 62], ['Período de leitura', (K.leituraAnterior && K.leituraAtual) ? `${K.leituraAnterior} a ${K.leituraAtual}` : '—', 46]
+  ];
+  let xi = X0;
+  infoCli.forEach(([k, v, w]) => { txt(k, xi, y + 13, { pt: 6.6, cor: '#5d6b65' }); txt(cortar(v, w - 2, 8.3, 600), xi, y + 17.2, { pt: 8.3, w: 600 }); xi += w; });
+  if (C.endereco) { txt('Endereço da instalação', X0, y + 23.5, { pt: 6.6, cor: '#5d6b65' }); txt(cortar(C.endereco, W, 8.3, 400), X0, y + 27.7, { pt: 8.3 }); }
+
+  // Faixa de economia
+  y = 98;
+  rr(X0, y, W, 20, 3, '#fff6dc');
+  g.fillStyle = '#f2a900'; g.beginPath(); g.arc(mm(X0 + 11), mm(y + 10), mm(6), 0, Math.PI * 2); g.fill();
+  txt('☀', X0 + 11, y + 12.4, { pt: 13, w: 700, cor: '#fff', al: 'center' });
+  if (V.economia > 0) {
+    txt('Neste mês você economizou', X0 + 21, y + 7.5, { pt: 8, w: 500, cor: '#6b4a00' });
+    txt(fmtR(V.economia), X0 + 21, y + 15.5, { pt: 15, w: 800, cor: '#3d2a00' });
+    const wEco = largura(fmtR(V.economia), 15, 800);
+    txt(`(${fmtP(V.economiaPct)} a menos do que pagaria sem a usina)`, X0 + 23 + wEco, y + 15.5, { pt: 7.8, cor: '#6b4a00' });
+  } else {
+    txt('Energia limpa gerada pela nossa usina', X0 + 21, y + 12.5, { pt: 11, w: 700, cor: '#3d2a00' });
+  }
+  if (fat.economiaAcumulada > 0) {
+    txt('Economia acumulada', X1 - 5, y + 7.5, { pt: 7, w: 600, cor: '#6b4a00', al: 'right' });
+    txt(fmtR(fat.economiaAcumulada), X1 - 5, y + 15, { pt: 11.5, w: 800, cor: '#3d2a00', al: 'right' });
+  }
+
+  // Comparativo (esquerda) e histórico (direita)
+  y = 125;
+  const colW = (W - 8) / 2; const xh = X0 + colW + 8;
+  txt('QUANTO VOCÊ PAGARIA', X0, y, { pt: 7, w: 700, cor: '#5d6b65' });
+  const maxV = Math.max(V.semUsina, V.comUsina, 1); const barW = colW - 24;
+  const barra = (yy, rotulo, partes, total) => {
+    txt(rotulo, X0, yy - 1.5, { pt: 7.8, w: 600 });
+    let x = X0; for (const [v, c] of partes) { const w = Math.max(0, v / maxV * barW); if (w > 0) { g.fillStyle = c; g.fillRect(mm(x), mm(yy), mm(w), mm(6.5)); x += w; } }
+    txt(fmtR(total), x + 2, yy + 4.8, { pt: 8.5, w: 800 });
+  };
+  barra(y + 8, 'Sem a usina', [[V.semUsina, '#b9c3bf']], V.semUsina);
+  barra(y + 22, 'Com a usina', [[V.totalConta, '#7d8b85'], [V.valorUsina, cor]], V.comUsina);
+  const leg = (x, yy, c, t) => { g.fillStyle = c; g.fillRect(mm(x), mm(yy - 2.6), mm(2.8), mm(2.8)); txt(t, x + 4, yy, { pt: 6.8, cor: '#5d6b65' }); };
+  leg(X0, y + 35, '#7d8b85', 'Conta da distribuidora'); leg(X0 + 38, y + 35, cor, V.incluirEnergisa ? 'Energia da usina com desconto' : 'Energia da usina (esta fatura)');
+
+  txt('HISTÓRICO DE CONSUMO (kWh)', xh, y, { pt: 7, w: 700, cor: '#5d6b65' });
+  const hist = (K.historico || []).slice(-12);
+  if (hist.length) {
+    const mx = Math.max(...hist.map(h => h.kwh), 1); const ch = 24; const bw = colW / hist.length;
+    hist.forEach((h, i) => {
+      const bh = Math.max(.3, h.kwh / mx * ch); const bx = xh + i * bw; const by = y + 7 + ch - bh; const ult = i === hist.length - 1;
+      g.fillStyle = ult ? cor : corMedia; g.globalAlpha = ult ? 1 : .5; g.fillRect(mm(bx + bw * .16), mm(by), mm(bw * .68), mm(bh)); g.globalAlpha = 1;
+      txt(h.mes.split('/')[0], bx + bw / 2, y + 35, { pt: 5.6, cor: '#5d6b65', al: 'center' });
+      if (ult || h.kwh === mx) txt(fmtN(h.kwh), bx + bw / 2, by - 1, { pt: 5.8, w: 700, al: 'center', cor: ult ? cor : '#5d6b65' });
+    });
+  } else txt('Sem histórico na conta.', xh, y + 18, { pt: 8, cor: '#5d6b65' });
+
+  // Detalhamento
+  y = 170;
+  txt('DETALHAMENTO DA COBRANÇA', X0, y, { pt: 7, w: 700, cor: '#5d6b65' });
+  y += 3;
+  rr(X0, y, W, 7, 1.5, corClara);
+  txt('Descrição', X0 + 3, y + 4.8, { pt: 7.2, w: 700, cor: corMedia });
+  txt('Quantidade', X0 + 120, y + 4.8, { pt: 7.2, w: 700, cor: corMedia, al: 'right' });
+  txt('Valor', X1 - 3, y + 4.8, { pt: 7.2, w: 700, cor: corMedia, al: 'right' });
+  y += 7;
+  const linhas = [];
+  if (V.modelo === 'preco_kwh') {
+    linhas.push(['Energia injetada compensada (valor na conta)', fmtN(V.kwh) + ' kWh', fmtR(V.creditos), '#5d6b65']);
+    linhas.push([`Energia da usina a ${fmtR(V.precoKwh)}/kWh`, fmtN(V.kwh) + ' kWh', fmtR(V.valorUsina), '#15211c', 600]);
+  } else {
+    const gs = V.grupos || [];
+    if (gs.length > 1) {
+      for (const g of gs) {
+        linhas.push([V.modelo === 'percentual_tarifa' ? `Energia injetada ${g.gd} a tarifa cheia (${fmtTarifa(g.tarifa)}/kWh)` : `Energia injetada ${g.gd}${g.tarifa ? ` (tarifa ${fmtTarifa(g.tarifa)}/kWh)` : ' (tarifas do mês de cada crédito)'}`, fmtN(g.kwh) + ' kWh', fmtR(g.base)]);
+      }
+      linhas.push([`Desconto sobre a energia injetada (${fmtP(V.descontoPct)})`, '', '− ' + fmtR(V.descontoValor), cor, 600]);
+    } else {
+      const gd = gs[0] && gs[0].gd === 'GD II' ? ' GD II' : '';
+      const tg = gs[0] && gs[0].tarifa; const rot = V.modelo === 'percentual_tarifa' ? `Energia compensada${gd} a tarifa cheia (${fmtTarifa(K.tarifaConsumo || 0)}/kWh)` : `Energia injetada${gd}${tg ? ` (tarifa ${fmtTarifa(tg)}/kWh)` : ' (conforme conta da distribuidora)'}`;
+      linhas.push([rot, fmtN(V.kwh) + ' kWh', fmtR(V.base)]);
+      linhas.push([`Desconto sobre a energia injetada (${fmtP(V.descontoPct)})`, '', '− ' + fmtR(V.descontoValor), cor, 600]);
+    }
+    linhas.push(['Energia da usina com desconto', fmtN(V.kwh) + ' kWh', fmtR(V.valorUsina), '#15211c', 600]);
+  }
+  if (V.incluirEnergisa) linhas.push([`Conta da distribuidora${K.notaFiscal ? ' (NF ' + K.notaFiscal + ')' : ''}`, '', fmtR(V.totalConta)]);
+  const rh = linhas.length > 4 ? 6.8 : 8; const by = rh * 0.69;
+  for (const [d, q, v, c, w] of linhas) {
+    txt(cortar(d, 100, 8.3, w || 400), X0 + 3, y + by, { pt: 8.3, w: w || 400, cor: c || '#15211c' });
+    txt(q, X0 + 120, y + by, { pt: 8.3, cor: '#5d6b65', al: 'right' });
+    txt(v, X1 - 3, y + by, { pt: 8.3, w: w || 400, cor: c || '#15211c', al: 'right' });
+    y += rh; ln(X0, y, X1, y, '#edf1ef');
+  }
+  txt('TOTAL A PAGAR', X0 + 3, y + 7, { pt: 9.5, w: 800 });
+  txt(fmtR(V.valorCobrado), X1 - 3, y + 7.3, { pt: 12.5, w: 800, cor, al: 'right' });
+  y += 10;
+  if (!V.incluirEnergisa) txt(cortar(`A conta da distribuidora (${fmtR(V.totalConta)}, vencimento ${K.vencimento || '—'}) é paga diretamente à ${K.distribuidora || 'distribuidora'} e não está incluída nesta fatura.`, W - 6, 7, 400), X0 + 3, y + 3, { pt: 7, cor: '#5d6b65' });
+
+  // Resumo da conta (esquerda) e Pix (direita)
+  y = Math.max(y + (V.incluirEnergisa ? 5 : 9), 232);
+  const hB = Math.min(47, 280 - y);
+  rr(X0, y, colW, hB, 3, null, '#dfe5e2');
+  txt('RESUMO DA CONTA DA DISTRIBUIDORA', X0 + 5, y + 7, { pt: 6.6, w: 700, cor: '#5d6b65' });
+  const res = [
+    ['Consumo do mês', fmtN(K.consumoKwh) + ' kWh'], ['Energia compensada pela usina', fmtN(K.compensadoKwh) + ' kWh'],
+    ['Valor da conta', fmtR(K.totalConta)], ['Vencimento da conta', K.vencimento || '—'],
+    ['Saldo de créditos', K.saldoKwh != null ? fmtN(K.saldoKwh) + ' kWh' : '—']
+  ];
+  const naoComp = Math.round((+K.consumoKwh || 0) - (+K.compensadoKwh || 0));
+  if (naoComp > 0) res.splice(2, 0, ['Consumo não compensado (pago na conta)', fmtN(naoComp) + ' kWh']);
+  if (+K.ajusteGD) res.splice(naoComp > 0 ? 4 : 3, 0, ['Ajuste GD II (Fio B, Lei 14.300)', fmtR(K.ajusteGD)]);
+  if (V.incluirEnergisa && res.length > 6) res.splice(res.findIndex(r => r[0] === 'Vencimento da conta'), 1);
+  const passo = Math.min(7.2, (hB - 18) / (res.length - 1));
+  res.forEach(([k, v], i) => { const yy = y + 14 + i * passo; txt(k, X0 + 5, yy, { pt: 7.4, cor: '#5d6b65' }); txt(v, X0 + colW - 5, yy, { pt: 7.6, w: 600, al: 'right' }); if (i < res.length - 1) ln(X0 + 5, yy + passo * 0.38, X0 + colW - 5, yy + passo * 0.38, '#f0f3f2'); });
+
+  rr(xh, y, colW, hB, 3, corClara);
+  const payload = fat.pix || '';
+  if (payload) {
+    const mat = qrMatriz(payload); const n = mat.length; const tam = Math.min(37, hB - 10); const cel = tam / n; const qx = xh + 5, qy = y + 5;
+    rr(qx - 1.5, qy - 1.5, tam + 3, tam + 3, 1.5, '#fff');
+    g.fillStyle = '#000';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (mat[r][c]) g.fillRect(Math.floor(mm(qx + c * cel)), Math.floor(mm(qy + r * cel)), Math.ceil(mm(cel)), Math.ceil(mm(cel)));
+    const xt = xh + 46; const wt = colW - 50;
+    txt('PAGUE COM PIX', xt, y + 9, { pt: 10, w: 800, cor });
+    quebra('Leia o QR Code no app do seu banco. O valor já vem preenchido.', wt, 6.8, 400).slice(0, 3).forEach((l, i) => txt(l, xt, y + 14 + i * 3.3, { pt: 6.8, cor: '#3b4843' }));
+    txt('Valor', xt, y + 25, { pt: 6.4, cor: '#5d6b65' }); txt(fmtR(V.valorCobrado), xt, y + 29.3, { pt: 9.5, w: 800 });
+    const PI = fat.pixInfo || { chave: E.pixChave, nome: E.pixNome || E.nome };
+    txt('Chave Pix', xt, y + 34.5, { pt: 6.4, cor: '#5d6b65' }); txt(cortar(PI.chave || '', wt, 7.5, 700), xt, y + 38.3, { pt: 7.5, w: 700 });
+    txt(cortar('Favorecido: ' + (PI.nome || ''), wt, 6.4, 400), xt, y + 42.5, { pt: 6.4, cor: '#5d6b65' });
+  } else {
+    txt('PAGAMENTO', xh + 5, y + 10, { pt: 10, w: 800, cor });
+    quebra('Cadastre sua chave Pix em "Minha empresa" para exibir o QR Code de pagamento aqui.', colW - 10, 8, 400).forEach((l, i) => txt(l, xh + 5, y + 17 + i * 4, { pt: 8, cor: '#3b4843' }));
+  }
+
+  // Rodapé
+  const yR = 286;
+  ln(X0, yR - 4, X1, yR - 4, '#dfe5e2');
+  if (E.mensagem) txt(cortar(E.mensagem, W, 7.8, 500), X0, yR, { pt: 7.8, w: 500, cor: '#3b4843' });
+  txt(cortar(`Fatura referente à energia compensada na UC ${C.uc || K.uc || ''} a partir dos créditos gerados pela usina de ${E.nome}.`, W, 6.4, 400), X0, yR + 4.5, { pt: 6.4, cor: '#7a8781' });
+  g.fillStyle = cor; g.fillRect(0, A4.h - mm(3), A4.w, mm(3));
+  return cv;
+}
+
+// PDF mínimo com a imagem JPEG da fatura (uma página A4)
+function pdfDeJpeg(jpegBytes, wPx, hPx) {
+  const enc = new TextEncoder(); const partes = []; let off = 0; const offs = [];
+  const add = b => { if (typeof b === 'string') b = enc.encode(b); partes.push(b); off += b.length; };
+  add('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  const obj = (n, corpo) => { offs[n] = off; add(`${n} 0 obj\n`); corpo(); add('\nendobj\n'); };
+  const PW = 595.28, PH = 841.89;
+  obj(1, () => add('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => add('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
+  obj(3, () => add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>`));
+  const cont = `q ${PW} 0 0 ${PH} 0 0 cm /Im0 Do Q`;
+  obj(4, () => add(`<< /Length ${cont.length} >>\nstream\n${cont}\nendstream`));
+  obj(5, () => { add(`<< /Type /XObject /Subtype /Image /Width ${wPx} /Height ${hPx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`); add(jpegBytes); add('\nendstream'); });
+  const xref = off;
+  let x = 'xref\n0 6\n0000000000 65535 f \n'; for (let i = 1; i <= 5; i++) x += String(offs[i]).padStart(10, '0') + ' 00000 n \n';
+  add(x + `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  const out = new Uint8Array(off); let p = 0; for (const b of partes) { out.set(b, p); p += b.length; } return out;
+}
+const canvasBlob = (cv, tipo, q) => new Promise(r => cv.toBlob(r, tipo, q));
+
+// ======================= Roteamento e render =======================
+const ROTAS = ['painel', 'faturas', 'nova', 'clientes', 'empresa'];
+let rota = 'painel';
+function pendencias() { return fila.filter(i => !i.erro).length; }
+window.addEventListener('beforeunload', e => { if (pendencias() || empresaPendente) { e.preventDefault(); e.returnValue = ''; } });
+function atualizarNav() { const a = document.querySelector('#nav a[data-r="nova"]'); if (a) { const n = pendencias(); a.innerHTML = 'Nova fatura' + (n ? ` <span class="badge b-aberta">${n}</span>` : ''); } }
+function lerRota() { const h = location.hash.replace('#', ''); rota = ROTAS.includes(h) ? h : 'painel'; document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.r === rota)); render(); }
+window.addEventListener('hashchange', lerRota);
+
+function aplicarMarca() {
+  const E = emp();
+  document.documentElement.style.setProperty('--pri', E.cor || '#12715b');
+  document.documentElement.style.setProperty('--pri-2', E.cor ? `color-mix(in srgb, ${E.cor} 80%, #000)` : '#0d5847');
+  document.documentElement.style.setProperty('--pri-soft', E.cor ? `color-mix(in srgb, ${E.cor} 12%, #fff)` : '#e6f2ee');
+  $('#marca').innerHTML = E.logo ? `<img src="${esc(E.logo)}" alt=""><span>${esc(E.nome)}</span>` : `<div class="sol">☀</div><span>${esc(E.nome || 'Faturamento Solar')}</span>`;
+}
+
+let renderPendente = false, renderAdiado = false;
+document.addEventListener('focusout', () => { if (renderAdiado) setTimeout(() => { const a = document.activeElement; if (!(a && a.matches && a.matches('#app input,#app textarea,#app select'))) { renderAdiado = false; render(); } }, 150); });
+function render() {
+  if (renderPendente) return; renderPendente = true;
+  requestAnimationFrame(() => {
+    renderPendente = false; atualizarNav();
+    const ativo = document.activeElement;
+    if (ativo && ativo.matches && ativo.matches('#app input,#app textarea,#app select') && ativo.type !== 'file' && rota !== 'faturas' && rota !== 'clientes' && rota !== 'painel') { renderAdiado = true; return; } // não atrapalhar quem digita
+    const app = $('#app');
+    if (rota === 'painel') telaPainel(app);
+    else if (rota === 'faturas') telaFaturas(app);
+    else if (rota === 'nova') telaNova(app);
+    else if (rota === 'clientes') telaClientes(app);
+    else if (rota === 'empresa') telaEmpresa(app);
+  });
+}
+
+function statusFatura(f) { if (f.status === 'paga') return 'paga'; const v = deBR(f.vencimento); return v && v < hoje0() ? 'atrasada' : 'aberta'; }
+const ROT_STATUS = { paga: 'Paga', aberta: 'Em aberto', atrasada: 'Atrasada' };
+
+// ----- Faturas -----
+let filtroMes = ''; let filtroStatus = ''; let buscaFat = '';
+function telaFaturas(app) {
+  const fats = S.faturas.slice().sort((a, b) => (b.refKey || '').localeCompare(a.refKey || '') || (b.numero || 0) - (a.numero || 0));
+  const meses = [...new Set(fats.map(f => f.refKey))].filter(Boolean).sort().reverse();
+  if (!filtroMes && meses.length) filtroMes = meses[0];
+  const doMes = fats.filter(f => !filtroMes || filtroMes === 'todos' || f.refKey === filtroMes);
+  const lista = doMes.filter(f => (!filtroStatus || statusFatura(f) === filtroStatus) && (!buscaFat || (f.cliente.nome + ' ' + f.cliente.uc + ' ' + (f.cliente.titular || '') + ' ' + f.numeroTxt).toLowerCase().includes(buscaFat.toLowerCase())));
+  const soma = (arr, fn) => r2(arr.reduce((s, f) => s + fn(f), 0));
+  const faturado = soma(doMes, f => f.calculo.valorCobrado), recebido = soma(doMes.filter(f => f.status === 'paga'), f => f.calculo.valorCobrado);
+  const eco = soma(doMes, f => f.calculo.economia), kwh = doMes.reduce((s, f) => s + (f.calculo.kwh || 0), 0);
+  const nomeMes = k => { if (k === 'todos') return 'Todos os meses'; const [a, m] = k.split('-'); return refTxt(+m, +a); };
+  app.innerHTML = `
+    <div class="linha" style="margin-bottom:16px">
+      <div><h1>Faturas</h1><p class="sub" style="margin:0">Cobranças geradas a partir das contas da distribuidora.</p></div>
+      <div class="esp"></div>
+      <a class="btn pri" href="#nova">+ Nova fatura</a>
+    </div>
+    ${!S.faturas.length ? `<div class="card vazio"><p style="font-size:16px;font-weight:600;color:var(--ink)">Nenhuma fatura ainda</p><p>Comece cadastrando sua empresa (logo e chave Pix) e depois importe a conta de energia de um cliente.</p><div class="linha" style="justify-content:center"><a class="btn" href="#empresa">Minha empresa</a><a class="btn pri" href="#nova">Importar conta</a></div></div>` : `
+    <div class="linha" style="margin-bottom:12px">
+      <label class="campo" style="min-width:180px">Mês de referência<select id="fMes"><option value="todos">Todos os meses</option>${meses.map(m => `<option value="${m}" ${m === filtroMes ? 'selected' : ''}>${nomeMes(m)}</option>`).join('')}</select></label>
+      <label class="campo" style="min-width:150px">Situação<select id="fSt"><option value="">Todas</option>${Object.entries(ROT_STATUS).map(([k, v]) => `<option value="${k}" ${k === filtroStatus ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label class="campo" style="flex:1;min-width:180px">Buscar<input id="fBusca" placeholder="Cliente, UC ou número" value="${esc(buscaFat)}"></label>
+      <div style="align-self:flex-end" class="linha">${S.local ? '<button class="btn" id="bPasta">Abrir pasta das faturas</button>' : ''}<button class="btn" id="bCsv">Exportar planilha (CSV)</button></div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Faturado</div><div class="v">${fmtR(faturado)}</div></div>
+      <div class="tile verde"><div class="k">Recebido</div><div class="v">${fmtR(recebido)}</div></div>
+      <div class="tile"><div class="k">A receber</div><div class="v">${fmtR(r2(faturado - recebido))}</div></div>
+      <div class="tile"><div class="k">Energia compensada</div><div class="v">${fmtN(kwh)} kWh</div></div>
+      <div class="tile"><div class="k">Economia dos clientes</div><div class="v">${fmtR(eco)}</div></div>
+    </div>
+    <div class="card" style="padding:6px 8px"><div class="tabela"><table>
+      <thead><tr><th>Nº</th><th>Cliente</th><th>UC</th><th>Referência</th><th class="n">kWh</th><th class="n">Valor</th><th>Vencimento</th><th>Situação</th><th></th></tr></thead>
+      <tbody>${lista.map(f => { const st = statusFatura(f); return `<tr class="click" data-id="${esc(f.id)}">
+        <td>${esc(f.numeroTxt)}</td><td><b>${esc(f.cliente.nome)}</b></td><td class="pequeno">${esc(f.cliente.uc)}</td><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}</td>
+        <td class="n">${fmtN(f.calculo.kwh)}</td><td class="n"><b>${fmtR(f.calculo.valorCobrado)}</b></td><td>${esc(f.vencimento)}</td>
+        <td><span class="badge b-${st}">${ROT_STATUS[st]}</span></td>
+        <td class="n"><button class="btn peq" data-pagar="${esc(f.id)}">${f.status === 'paga' ? 'Reabrir' : 'Marcar paga'}</button></td></tr>`; }).join('') || `<tr><td colspan="9" class="vazio">Nenhuma fatura com esses filtros.</td></tr>`}</tbody>
+    </table></div></div>`}`;
+  const sm = $('#fMes'); if (sm) sm.onchange = e => { filtroMes = e.target.value; render(); };
+  const ss = $('#fSt'); if (ss) ss.onchange = e => { filtroStatus = e.target.value; render(); };
+  const sb = $('#fBusca'); if (sb) { sb.oninput = e => { buscaFat = e.target.value; clearTimeout(sb._t); sb._t = setTimeout(() => { render(); requestAnimationFrame(() => { const n = $('#fBusca'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }); }, 250); }; }
+  const bc = $('#bCsv'); if (bc) bc.onclick = () => exportarCsv(lista);
+  const bp = $('#bPasta'); if (bp) bp.onclick = () => fetch('/api/abrir?alvo=faturas', { method: 'POST' });
+  app.querySelectorAll('tr.click').forEach(tr => tr.onclick = e => { if (e.target.closest('[data-pagar]')) return; abrirFatura(tr.dataset.id); });
+  app.querySelectorAll('[data-pagar]').forEach(b => b.onclick = async () => { const f = S.faturas.find(x => x.id === b.dataset.pagar); if (!f) return; b.disabled = true; try { await alternarPaga(f); } catch (e) { erroGravar(e); } });
+}
+async function alternarPaga(f) {
+  const { id, ...d } = f; const paga = f.status !== 'paga';
+  await salvar('faturas', id, { ...d, status: paga ? 'paga' : 'aberta', pagaEm: paga ? dataBR(new Date()) : '' });
+  toast(paga ? 'Fatura marcada como paga.' : 'Fatura reaberta.');
+}
+async function exportarCsv(lista) {
+  const cab = ['Numero', 'Cliente', 'CPF/CNPJ', 'UC', 'Referencia', 'kWh compensado', 'Valor creditos', 'Desconto', 'Valor usina', 'Conta distribuidora', 'Total cobrado', 'Economia cliente', 'Emissao', 'Vencimento', 'Situacao', 'Paga em'];
+  const q = v => { v = String(v ?? ''); return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const n = v => numBR(v);
+  const linhas = lista.map(f => [f.numeroTxt, f.cliente.nome, f.cliente.documento, f.cliente.uc, refTxt(f.conta.mesRef, f.conta.anoRef), f.calculo.kwh, n(f.calculo.creditos), n(f.calculo.descontoValor), n(f.calculo.valorUsina), n(f.calculo.totalConta), n(f.calculo.valorCobrado), n(f.calculo.economia), f.emissao, f.vencimento, ROT_STATUS[statusFatura(f)], f.pagaEm || ''].map(q).join(';'));
+  const csv = '﻿' + [cab.join(';'), ...linhas].join('\r\n');
+  await baixar(`faturas-${filtroMes || 'todas'}.csv`, csv);
+}
+async function baixar(nome, dados) {
+  if (!S.down) { toast('Download não disponível nesta visualização.'); return false; }
+  try { await S.down.save({ filename: nome, data: dados }); return true; }
+  catch (e) {
+    if (S.local) { toast('Não consegui salvar o arquivo: ' + e.message, 5000); return false; }
+    if (e && e.code === 'declined') return false; if (e && e.code === 'rate_limited') toast('Aguarde um instante e tente de novo.'); else toast('Não foi possível baixar o arquivo.'); return false;
+  }
+}
+
+// ----- Visualizar fatura -----
+async function abrirFatura(id, dado) {
+  const f = dado || S.faturas.find(x => x.id === id); if (!f) return;
+  const ov = modal(`<div class="cab"><b style="font-size:16px">Fatura ${esc(f.numeroTxt)}</b><span class="pequeno">${esc(f.cliente.nome)} · ${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}</span><div class="esp"></div><button class="btn" data-fechar>Fechar</button></div>
+    <div class="corpo"><div class="prev"><div id="pvImg"><p class="vazio"><span class="carregando"></span> Gerando fatura…</p></div>
+    <div class="lado">
+      <button class="btn pri" id="bPdf" disabled>${S.local ? 'Salvar PDF' : 'Baixar PDF'}</button>
+      <button class="btn" id="bPng" disabled>${S.local ? 'Salvar imagem (WhatsApp)' : 'Baixar imagem (WhatsApp)'}</button>
+      <button class="btn" id="bPix" ${f.pix ? '' : 'disabled'}>Copiar Pix copia e cola</button>
+      <button class="btn" id="bMsg">Copiar mensagem p/ WhatsApp</button>
+      <button class="btn" id="bPaga">${f.status === 'paga' ? 'Reabrir fatura' : 'Marcar como paga'}</button>
+      <div class="calc" style="margin:6px 0 10px">
+        <div class="l"><span>Energia injetada (${fmtN(f.calculo.kwh)} kWh)</span><span>${fmtR(f.calculo.creditos)}</span></div>
+        <div class="l"><span>Energia da usina</span><span>${fmtR(f.calculo.valorUsina)}</span></div>
+        ${f.calculo.incluirEnergisa ? `<div class="l"><span>Conta distribuidora</span><span>${fmtR(f.calculo.totalConta)}</span></div>` : ''}
+        <div class="l tot"><span>Total</span><span>${fmtR(f.calculo.valorCobrado)}</span></div>
+        <div class="l eco"><span>Economia do cliente</span><span>${fmtR(f.calculo.economia)}</span></div>
+      </div>
+      ${f.calculo.modelo !== 'preco_kwh' ? (() => { const gs = f.calculo.grupos || []; const g1 = gs.find(g => g.gd === 'GD I'), g2 = gs.find(g => g.gd === 'GD II'); const d1 = (g1 || gs[0] || { descontoPct: f.calculo.descontoPct || 0 }).descontoPct; void g2;
+        return `<div class="linha" style="gap:6px;margin-bottom:10px;align-items:flex-end"><label class="campo" style="flex:1">Desconto desta fatura (%)<input id="iDesc" inputmode="decimal" value="${esc(numBR(d1 * 100))}"></label><button class="btn" id="bDesc">Aplicar</button></div>`; })() : ''}
+      <p class="pequeno">Situação: <span class="badge b-${statusFatura(f)}">${ROT_STATUS[statusFatura(f)]}</span>${f.pagaEm ? ' em ' + esc(f.pagaEm) : ''}</p>
+      ${S.down ? '' : '<p class="pequeno">Para baixar arquivos, abra o sistema pelo link do Claude.</p>'}
+      <button class="btn perigo" id="bDel" style="margin-top:14px">Excluir fatura</button>
+    </div></div></div>`);
+  let cv = null;
+  try {
+    cv = await desenharFatura(f);
+    const url = cv.toDataURL('image/png');
+    $('#pvImg', ov).innerHTML = `<img src="${url}" alt="Fatura">`;
+    $('#bPdf', ov).disabled = !S.down; $('#bPng', ov).disabled = !S.down;
+  } catch (e) { console.error(e); $('#pvImg', ov).innerHTML = `<div class="aviso erro">Não consegui desenhar a fatura: ${esc(e.message)}</div>`; }
+  const base = `fatura-${f.numeroTxt}-${semAcento(f.cliente.nome).split(' ')[0] || 'cliente'}-${refKey(f.conta.mesRef, f.conta.anoRef)}`.toLowerCase();
+  $('#bPdf', ov).onclick = async () => { const b = await canvasBlob(cv, 'image/jpeg', .92); const bytes = new Uint8Array(await b.arrayBuffer()); await baixar(base + '.pdf', pdfDeJpeg(bytes, cv.width, cv.height)); };
+  $('#bPng', ov).onclick = async () => { const b = await canvasBlob(cv, 'image/png'); await baixar(base + '.png', b); };
+  $('#bPix', ov).onclick = async () => { try { await navigator.clipboard.writeText(f.pix); toast('Código Pix copiado.'); } catch (e) { mostrarTexto('Pix copia e cola', f.pix); } };
+  $('#bMsg', ov).onclick = async () => {
+    const E = f.empresa || emp(); const nome1 = (f.cliente.nome || '').split(' ')[0];
+    const nomeC = nome1 ? nome1.charAt(0) + nome1.slice(1).toLowerCase() : '';
+    const msg = `Olá${nomeC ? ', ' + nomeC : ''}! Segue sua fatura de energia solar de ${refTxt(f.conta.mesRef, f.conta.anoRef)}.\n\n` +
+      `Energia compensada: ${fmtN(f.calculo.kwh)} kWh\nValor: ${fmtR(f.calculo.valorCobrado)}\nVencimento: ${f.vencimento}\n` +
+      (f.calculo.economia > 0 ? `Sua economia este mês: ${fmtR(f.calculo.economia)}\n` : '') +
+      (f.pix ? `\nPix copia e cola:\n${f.pix}\n` : '') + `\n${E.nome}`;
+    try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada. É só colar no WhatsApp junto com a imagem.'); } catch (e) { mostrarTexto('Mensagem para o cliente', msg); }
+  };
+  const bd = $('#bDesc', ov); if (bd) bd.onclick = async () => {
+    const e1 = $('#iDesc', ov), e2 = $('#iDesc2', ov);
+    const d1 = e1 ? parseBR(e1.value) : parseBR(e2.value), d2 = e2 ? parseBR(e2.value) : d1;
+    if ([d1, d2].some(d => d == null || d < 0 || d > 100)) return toast('Informe um desconto entre 0 e 100.');
+    bd.disabled = true;
+    try { const nf = await recalcularFatura(f, { modelo: f.calculo.modelo, desconto: d1, descontoGD2: d2, incluirEnergisa: f.calculo.incluirEnergisa }); ov.remove(); toast('Desconto atualizado nesta fatura.'); abrirFatura(nf.id, nf); }
+    catch (e) { bd.disabled = false; erroGravar(e); }
+  };
+  $('#bPaga', ov).onclick = async () => { try { await alternarPaga(f); fechar(ov); } catch (e) { erroGravar(e); } };
+  $('#bDel', ov).onclick = async () => { if (await confirmar('Excluir esta fatura?', `A fatura ${f.numeroTxt} de ${f.cliente.nome} será apagada. Isso não pode ser desfeito.`, 'Excluir')) { try { await apagar('faturas', f.id); fechar(ov); toast('Fatura excluída.'); } catch (e) { erroGravar(e); } } };
+}
+function modal(html, cls = '') { const ov = document.createElement('div'); ov.className = 'overlay'; ov.innerHTML = `<div class="modal ${cls}">${html}</div>`; $('#modais').appendChild(ov); ov.addEventListener('click', e => { if (e.target.closest('[data-fechar]')) fechar(ov); }); /* clicar fora não fecha, para não perder o que foi digitado */ return ov; }
+function fechar(ov) { ov.remove(); render(); }
+function confirmar(titulo, texto, ok = 'Confirmar') { return new Promise(res => { const ov = modal(`<div class="cab"><b>${esc(titulo)}</b></div><div class="corpo"><p>${esc(texto)}</p><div class="linha" style="justify-content:flex-end"><button class="btn" id="cN">Cancelar</button><button class="btn pri" id="cS">${esc(ok)}</button></div></div>`, 'peq'); $('#cN', ov).onclick = () => { ov.remove(); res(false); }; $('#cS', ov).onclick = () => { ov.remove(); res(true); }; }); }
+function mostrarTexto(titulo, t) { const ov = modal(`<div class="cab"><b>${esc(titulo)}</b><div class="esp"></div><button class="btn" data-fechar>Fechar</button></div><div class="corpo"><p class="pequeno">Selecione e copie o texto abaixo.</p><textarea style="width:100%;height:110px;font-family:monospace;font-size:12px" readonly>${esc(t)}</textarea></div>`, 'peq'); const ta = $('textarea', ov); ta.focus(); ta.select(); }
+
+// ----- Nova fatura (importação) -----
+const fila = []; // contas importadas aguardando geração
+function contaVazia() { const d = new Date(); return { manual: true, avisos: [], itens: [], historico: [], distribuidora: 'Energisa Paraíba', uc: '', mesRef: d.getMonth() + 1, anoRef: d.getFullYear(), vencimento: '', totalConta: 0, consumoKwh: 0, compensadoKwh: 0, valorCreditos: 0, ajusteGD: 0, tarifaConsumo: 0, injecoes: [{ gd: 'GD I', origem: '', kwh: 0, tarifa: 0, valor: 0 }], nome: '', documento: '', endereco: '' }; }
+function ucsDe(c) { return c && Array.isArray(c.ucs) && c.ucs.length ? c.ucs : (c && c.uc ? [{ uc: c.uc, titular: '' }] : []); }
+function temUc(c, uc) { const d = soDig(uc); return !!d && ucsDe(c).some(u => soDig(u.uc) === d); }
+function acharCliente(uc) { return S.clientes.find(c => temUc(c, uc)) || null; }
+const NOVO_CLI = () => ({ nome: '', documento: '', endereco: '', telefone: '', email: '', modelo: 'percentual_creditos', desconto: 15, descontoGD2: 15, precoKwh: '', incluirEnergisa: true });
+function vencPadrao() { const d = new Date(); d.setDate(d.getDate() + (+emp().diasVencimento || 10)); return dataBR(d); }
+
+function telaNova(app) {
+  app.innerHTML = `
+    <h1>Nova fatura</h1><p class="sub">Envie o PDF da conta de energia do cliente. O sistema lê os dados, aplica o desconto do cliente e gera a fatura com a sua marca.</p>
+    ${!emp().pixChave && !(emp().pixTitulares || []).length ? `<div class="aviso">Sua chave Pix ainda não foi cadastrada. <a href="#empresa">Cadastre em Minha empresa</a> para o QR Code sair na fatura.</div>` : ''}
+    <label class="drop" id="drop"><input type="file" id="arq" accept="application/pdf" multiple hidden>
+      <div style="font-size:30px">📄</div><b>Arraste as contas em PDF aqui</b><div class="pequeno" style="margin-top:4px">ou clique para escolher · pode enviar várias de uma vez</div></label>
+    <div class="linha" style="margin-top:10px"><span class="pequeno">Conta sem PDF?</span><button class="btn peq" id="bManual">Preencher manualmente</button>${fila.length > 1 ? `<div class="esp"></div><button class="btn sun" id="bTodas">Gerar todas (${fila.length})</button>` : ''}</div>
+    <div id="fila"></div>`;
+  const drop = $('#drop'), inp = $('#arq');
+  inp.onchange = () => { importar([...inp.files]); inp.value = ''; };
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('on'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
+  drop.addEventListener('drop', e => importar([...e.dataTransfer.files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name))));
+  $('#bManual').onclick = () => { fila.unshift({ id: novoId(), arquivo: 'Preenchimento manual', conta: contaVazia(), clienteId: '', venc: vencPadrao() }); render(); };
+  const bt = $('#bTodas'); if (bt) bt.onclick = gerarTodas;
+  const box = $('#fila');
+  fila.forEach(item => box.appendChild(cartaoConta(item)));
+}
+
+async function importar(arquivos) {
+  if (!arquivos.length) return;
+  for (const a of arquivos) {
+    const item = { id: novoId(), arquivo: a.name, carregando: true, venc: vencPadrao() };
+    fila.unshift(item); render();
+    try {
+      item.conta = await lerPdf(a); sincronizarInjecoes(item.conta);
+      const c = acharCliente(item.conta.uc); item.clienteId = c ? c.id : '';
+      if (!c) item.novoCli = NOVO_CLI();
+    } catch (e) { console.error(e); item.erro = e.message || String(e); }
+    item.carregando = false; render();
+  }
+}
+
+function clienteDoItem(item) { return item.clienteId ? S.clientes.find(c => c.id === item.clienteId) : null; }
+function existente(item) { const k = item.conta; return S.faturas.find(f => soDig(f.cliente.uc) === soDig(k.uc) && f.conta.mesRef === +k.mesRef && f.conta.anoRef === +k.anoRef); }
+
+function cartaoConta(item) {
+  const el = document.createElement('div'); el.className = 'card conta';
+  if (item.carregando) { el.innerHTML = `<span class="carregando"></span> Lendo <b>${esc(item.arquivo)}</b>…`; return el; }
+  if (item.erro) { el.innerHTML = `<div class="linha"><b>${esc(item.arquivo)}</b><div class="esp"></div><button class="btn peq" data-x>Remover</button></div><div class="aviso erro">Não consegui ler este PDF: ${esc(item.erro)}</div>`; $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); }; return el; }
+  const k = item.conta; const cli = clienteDoItem(item); const dup = existente(item);
+  if (!cli && !item.novoCli) item.novoCli = NOVO_CLI();
+  if (cli && item.regraCli !== cli.id) { item.regra = { modelo: cli.modelo || 'percentual_creditos', desconto: +cli.desconto || 0, descontoGD2: cli.descontoGD2 != null && cli.descontoGD2 !== '' ? +cli.descontoGD2 : +cli.desconto || 0, precoKwh: +cli.precoKwh || 0, incluirEnergisa: !!cli.incluirEnergisa }; item.regraCli = cli.id; }
+  const regra = cli ? item.regra : item.novoCli;
+  const cliCalc = cli ? { ...cli, ...item.regra } : item.novoCli;
+  const V = calcular(k, cliCalc);
+  const campo = (rot, chave, tipo = 'text', extra = '') => `<label class="campo">${rot}<input data-k="${chave}" type="${tipo}" value="${esc(tipo === 'number' ? (k[chave] ?? '') : (chave === 'tarifaConsumo' ? String(k[chave] ?? '').replace('.', ',') : ['totalConta', 'valorCreditos', 'ajusteGD'].includes(chave) ? numBR(k[chave]) : (k[chave] ?? '')))}" ${extra}></label>`;
+  el.innerHTML = `
+    <div class="conta-cab"><div><div class="t">${cli ? esc(cli.nome) : '<span style="color:var(--red)">Cliente ainda não identificado</span>'}</div><div class="m">${esc(refTxt(k.mesRef, k.anoRef))} · UC ${esc(k.uc || '—')} · Titular da conta: ${esc(k.nome || '—')} · ${esc(item.arquivo)}</div></div><div class="esp"></div><button class="btn peq" data-x>Descartar</button></div>
+    ${(k.avisos || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('')}
+    ${dup ? `<div class="aviso">Já existe a fatura ${esc(dup.numeroTxt)} para esta UC em ${esc(refTxt(k.mesRef, k.anoRef))}. Gerar de novo vai substituí-la (mantendo o número).</div>` : ''}
+    <div class="cols">
+      <div>
+        <div class="secao">Dados lidos da conta (confira)</div>
+        <div class="grade g3">
+          ${campo('UC', 'uc')}
+          <label class="campo">Mês ref.<select data-k="mesRef">${MESES_N.map((m, i) => `<option value="${i + 1}" ${+k.mesRef === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}</select></label>
+          ${campo('Ano ref.', 'anoRef', 'number')}
+          ${campo('Consumo (kWh)', 'consumoKwh', 'number')}
+          ${campo('Total da conta (R$)', 'totalConta', 'text', 'inputmode="decimal"')}
+          ${campo('Vencimento da conta', 'vencimento', 'text', 'placeholder="dd/mm/aaaa"')}
+          ${campo('Tarifa consumo (R$/kWh)', 'tarifaConsumo', 'text', 'inputmode="decimal"')}
+          ${campo('Ajuste GD II / Fio B (R$)', 'ajusteGD', 'text', 'inputmode="decimal"')}
+        </div>
+        ${avisoNaoCompensado(k, regra)}
+        <div class="secao">Energia injetada (cada linha da conta, com a tarifa do mês)</div>
+        <div class="tabela"><table class="inj">
+          <thead><tr><th>Modalidade</th><th>Origem</th><th class="n">kWh</th><th class="n">Tarifa (R$/kWh)</th><th class="n">Valor (R$)</th><th></th></tr></thead>
+          <tbody>${(k.injecoes || []).map((l, i) => `<tr>
+            <td><select data-inj="${i}" data-f="gd"><option ${l.gd !== 'GD II' ? 'selected' : ''}>GD I</option><option ${l.gd === 'GD II' ? 'selected' : ''}>GD II</option></select></td>
+            <td><input data-inj="${i}" data-f="origem" value="${esc(l.origem || '')}" placeholder="mês/ano" style="width:74px"></td>
+            <td class="n"><input data-inj="${i}" data-f="kwh" inputmode="decimal" value="${esc(String(l.kwh ?? '').replace('.', ','))}" style="width:80px;text-align:right"></td>
+            <td class="n"><input data-inj="${i}" data-f="tarifa" inputmode="decimal" value="${esc(String(l.tarifa ?? '').replace('.', ','))}" style="width:92px;text-align:right"></td>
+            <td class="n" data-val="${i}">${fmtR(l.valor)}</td>
+            <td><button class="btn peq" data-rminj="${i}" title="Remover linha">✕</button></td></tr>`).join('')}
+            <tr class="tot-inj"><td colspan="2"><button class="btn peq" data-addinj>+ Linha</button></td><td class="n" data-totk><b>${fmtN(k.compensadoKwh)}</b></td><td></td><td class="n" data-totv><b>${fmtR(k.valorCreditos)}</b></td><td></td></tr>
+          </tbody></table></div>
+        <p class="pequeno" style="margin:6px 0 0">O valor de cada linha vem da conta. Se você mudar kWh ou tarifa, ele é recalculado (kWh × tarifa).</p>
+        <div class="secao">Cliente (quem recebe e paga a fatura)</div>
+        <label class="campo">De quem é esta UC?<select data-cli><option value="">— Cadastrar novo cliente —</option>${S.clientes.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => `<option value="${esc(c.id)}" ${c.id === item.clienteId ? 'selected' : ''}>${esc(c.nome)}${c.documento ? ' · ' + esc(c.documento) : ''} (${ucsDe(c).length} UC)</option>`).join('')}</select></label>
+        ${cli ? `<p class="pequeno" style="margin:8px 0 0">${temUc(cli, k.uc) ? `UC ${esc(k.uc)} já vinculada a ${esc(cli.nome)}.` : `<b style="color:var(--ink)">A UC ${esc(k.uc)} será vinculada a ${esc(cli.nome)}</b> ao gerar a fatura.`} · <a href="#clientes">ver cadastro</a></p>`
+              : `<p class="pequeno" style="margin:8px 0 0">A conta está no nome de <b>${esc(k.nome || '—')}</b>. Cadastre abaixo o cliente que vai receber a fatura, ou escolha um cliente já cadastrado acima.</p>${formCliente(item.novoCli, 'nc', true)}`}
+      </div>
+      <div>
+        <div class="secao">Desconto deste cliente</div>
+        ${formRegra(regra, 'rg', true)}
+        <div class="secao">Cálculo</div>
+        <div data-calc>${calcHtml(V)}</div>
+        ${(() => { const ps = escolherPix(emp(), { ...k, titular: k.nome }); return ps ? `<div class="aviso ok" style="margin-top:12px">Pix desta fatura: <b>${esc(ps.chave)}</b> · ${esc(ps.nome)}${ps.porTitular ? ' (chave do titular da conta)' : ' (chave da empresa)'}</div>` : `<div class="aviso" style="margin-top:12px">Nenhuma chave Pix para esta conta. Cadastre em <a href="#empresa">Minha empresa</a>.</div>`; })()}
+        <label class="campo" style="margin-top:12px">Vencimento da sua fatura<input data-venc value="${esc(item.venc)}" placeholder="dd/mm/aaaa"></label>
+        <button class="btn pri" data-gerar style="width:100%;justify-content:center;margin-top:12px">${dup ? 'Gerar de novo' : 'Gerar fatura'}</button>
+      </div>
+    </div>`;
+  $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); };
+  el.querySelectorAll('[data-k]').forEach(i => i.addEventListener('change', () => {
+    const ch = i.dataset.k; let v = i.value;
+    if (['consumoKwh', 'compensadoKwh', 'anoRef', 'mesRef', 'totalConta', 'valorCreditos', 'tarifaConsumo', 'ajusteGD'].includes(ch)) v = parseBR(v) || 0;
+    k[ch] = v;
+    if (ch === 'uc') { const c = acharCliente(v); if (c) item.clienteId = c.id; }
+    if (['uc', 'mesRef', 'anoRef'].includes(ch)) redesenhar(); else atualizarCalc();
+  }));
+  el.querySelectorAll('input[data-k]').forEach(i => { if (!['uc', 'anoRef', 'vencimento'].includes(i.dataset.k)) i.addEventListener('input', () => { const v = parseBR(i.value); k[i.dataset.k] = v || 0; atualizarCalc(); }); });
+  el.querySelectorAll('[data-inj]').forEach(i => {
+    const ev = i.tagName === 'SELECT' ? 'change' : 'input';
+    i.addEventListener(ev, () => {
+      const l = k.injecoes[+i.dataset.inj]; const f = i.dataset.f;
+      if (f === 'kwh' || f === 'tarifa') { l[f] = parseBR(i.value) || 0; l.valor = r2((+l.kwh || 0) * (+l.tarifa || 0)); const c = $(`[data-val="${i.dataset.inj}"]`, el); if (c) c.textContent = fmtR(l.valor); }
+      else l[f] = i.value;
+      sincronizarInjecoes(k);
+      const tk = $('[data-totk]', el), tv = $('[data-totv]', el); if (tk) tk.innerHTML = `<b>${fmtN(k.compensadoKwh)}</b>`; if (tv) tv.innerHTML = `<b>${fmtR(k.valorCreditos)}</b>`;
+      if (f === 'gd') redesenhar(); else atualizarCalc();
+    });
+  });
+  el.querySelectorAll('[data-rminj]').forEach(b => b.onclick = () => { k.injecoes.splice(+b.dataset.rminj, 1); sincronizarInjecoes(k); redesenhar(); });
+  const ai = $('[data-addinj]', el); if (ai) ai.onclick = () => { (k.injecoes || (k.injecoes = [])).push({ gd: 'GD I', origem: '', kwh: 0, tarifa: (k.injecoes[0] && k.injecoes[0].tarifa) || 0, valor: 0 }); sincronizarInjecoes(k); redesenhar(); };
+  $('[data-cli]', el).onchange = e => { item.clienteId = e.target.value; redesenhar(); };
+  $('[data-venc]', el).onchange = e => { item.venc = e.target.value; };
+  ligarFormCliente(el, 'nc', item.novoCli, redesenhar);
+  ligarFormCliente(el, 'rg', regra, redesenhar, atualizarCalc);
+  function atualizarCalc() { const cc = clienteDoItem(item); const V2 = calcular(k, cc ? { ...cc, ...item.regra } : item.novoCli); const box = $('[data-calc]', el); if (box) box.innerHTML = calcHtml(V2); }
+  $('[data-gerar]', el).onclick = async e => { e.target.disabled = true; const ok = await gerar(item); if (!ok) e.target.disabled = false; };
+  function redesenhar() { const novo = cartaoConta(item); el.replaceWith(novo); }
+  return el;
+}
+
+function avisoNaoCompensado(k, regra) {
+  const falta = Math.round((+k.consumoKwh || 0) - (+k.compensadoKwh || 0));
+  if (!(falta > 0) || !(+k.consumoKwh)) return '';
+  const minimo = { MONOFASICO: 30, BIFASICO: 50, TRIFASICO: 100 }[semAcento(k.ligacao || '').toUpperCase()];
+  const ehMinimo = minimo && falta === minimo;
+  return `<div class="aviso" style="margin-top:8px">${fmtN(falta)} kWh do consumo não foram compensados pela usina${ehMinimo ? ` (é o consumo mínimo da ligação ${esc((k.ligacao || '').toLowerCase())}, que a Energisa sempre cobra)` : ''}. Esse valor já está na conta da Energisa${regra && regra.incluirEnergisa ? ', que entra na sua fatura' : ', paga direto pelo cliente'}. O desconto vale só sobre a energia injetada.</div>`;
+}
+function calcHtml(V) {
+  return `        <div class="calc">
+          ${V.modelo === 'preco_kwh' ? `<div class="l"><span>${fmtN(V.kwh)} kWh × ${fmtR(V.precoKwh)}</span><span>${fmtR(V.valorUsina)}</span></div>` : `
+          ${(V.grupos || []).map(g => `<div class="l"><span>${V.modelo === 'percentual_tarifa' ? 'Tarifa cheia' : 'Energia injetada'}${V.grupos.length > 1 || g.gd === 'GD II' ? ' ' + g.gd : ''} (${fmtN(g.kwh)} kWh)</span><span>${fmtR(g.base)}</span></div>`).join('')}
+          ${(V.grupos || []).length > 1 ? `<div class="l" style="font-weight:600"><span>Total injetado (${fmtN(V.kwh)} kWh)</span><span>${fmtR(V.base)}</span></div>` : ''}
+          <div class="l eco"><span>Desconto ${fmtP(V.descontoPct)}</span><span>− ${fmtR(V.descontoValor)}</span></div>
+          <div class="l" style="font-weight:600"><span>Energia da usina com desconto${V.grupos && V.grupos.length > 1 ? ` (${fmtN(V.kwh)} kWh)` : ''}</span><span>${fmtR(V.valorUsina)}</span></div>`}
+          ${V.incluirEnergisa ? `<div class="l"><span>Conta da distribuidora</span><span>${fmtR(V.totalConta)}</span></div>` : ''}
+          <div class="l tot"><span>Valor da fatura</span><span>${fmtR(V.valorCobrado)}</span></div>
+        </div>
+        <div class="calc" style="margin-top:10px">
+          <div class="l"><span>Sem a usina o cliente pagaria</span><span>${fmtR(V.semUsina)}</span></div>
+          <div class="l"><span>Com a usina paga (distribuidora + você)</span><span>${fmtR(V.comUsina)}</span></div>
+          <div class="l ${V.economia >= 0 ? 'eco' : 'neg'}"><span>Economia do cliente</span><span>${fmtR(V.economia)} (${fmtP(V.economiaPct)})</span></div>
+        </div>
+        ${V.economia < 0 ? '<div class="aviso erro">Com essa regra o cliente pagaria mais do que sem a usina. Revise o desconto.</div>' : ''}`;
+}
+function camposDesconto(c, grande, soGD1) {
+  const st = grande ? ' style="font-size:18px;font-weight:700"' : '';
+  const v2 = c.descontoGD2 != null && c.descontoGD2 !== '' ? c.descontoGD2 : c.desconto;
+  if (soGD1) return `<label class="campo">Desconto sobre a energia injetada (%)<input data-c="desconto" inputmode="decimal" value="${esc(numBR(c.desconto))}"${st}></label>`;
+  return `<label class="campo">Desconto GD I (%)<input data-c="desconto" inputmode="decimal" value="${esc(numBR(c.desconto))}"${st}></label>
+    <label class="campo">Desconto GD II (%)<input data-c="descontoGD2" inputmode="decimal" value="${esc(numBR(v2))}"${st}></label>`;
+}
+function formRegra(c, p, soGD1) {
+  return `<div class="grade g2" data-form="${p}">
+    <label class="campo" style="grid-column:1/-1">Regra<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}" style="font-size:18px;font-weight:700"></label>` : camposDesconto(c, true, soGD1)}
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Somar o valor da conta da Energisa na fatura</label>
+  </div>`;
+}
+function formCliente(c, p, semRegra) {
+  return `<div class="grade g2" style="margin-top:10px" data-form="${p}">
+    <label class="campo" style="grid-column:1/-1">Nome do cliente<input data-c="nome" value="${esc(c.nome)}" placeholder="Nome que sai na fatura"></label>
+    <label class="campo">CPF/CNPJ<input data-c="documento" value="${esc(c.documento)}"></label>
+    <label class="campo">Endereço (opcional)<input data-c="endereco" value="${esc(c.endereco)}" placeholder="Se vazio, usa o da conta"></label>
+    <label class="campo">WhatsApp / telefone<input data-c="telefone" value="${esc(c.telefone || '')}"></label>
+    <label class="campo">E-mail<input data-c="email" value="${esc(c.email || '')}"></label>
+    ${semRegra ? '' : `<label class="campo" style="grid-column:1/-1">Regra de cobrança<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}"></label>` : camposDesconto(c, false, true)}
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Incluir o valor da conta da Energisa nesta fatura (o cliente paga tudo para você)</label>`}
+  </div>`;
+}
+function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
+  const f = el.querySelector(`[data-form="${p}"]`); if (!f || !c) return;
+  f.querySelectorAll('[data-c]').forEach(i => i.addEventListener('change', () => {
+    const k = i.dataset.c;
+    if (i.type === 'checkbox') c[k] = i.checked;
+    else if (k === 'desconto' || k === 'descontoGD2' || k === 'precoKwh') c[k] = parseBR(i.value) || 0;
+    else c[k] = i.value.trim();
+    if (k === 'modelo' && aoMudar) aoMudar();
+    else if (['desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa'].includes(k)) (aoDigitar || aoMudar || (() => {}))();
+  }));
+  if (aoDigitar) f.querySelectorAll('[data-c="desconto"],[data-c="descontoGD2"],[data-c="precoKwh"]').forEach(i => i.addEventListener('input', () => { c[i.dataset.c] = parseBR(i.value) || 0; aoDigitar(); }));
+}
+
+async function gerar(item, silencioso = false) {
+  const k = item.conta;
+  if (!k.uc) { toast('Informe a UC.'); return false; }
+  if (!(+k.compensadoKwh > 0)) { toast('Informe a energia compensada (kWh).'); return false; }
+  if (!deBR(item.venc)) { toast('Informe o vencimento no formato dd/mm/aaaa.'); return false; }
+  try {
+    let cli = clienteDoItem(item);
+    const outroDono = acharCliente(k.uc);
+    if (outroDono && (!cli || outroDono.id !== cli.id)) { toast(`A UC ${k.uc} já pertence a ${outroDono.nome}. Escolha esse cliente ou desvincule a UC no cadastro.`, 5000); return false; }
+    if (cli) {
+      const mudou = item.regra && ['modelo', 'desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa'].some(c => (cli[c] ?? '') !== (item.regra[c] ?? '') && !(c === 'incluirEnergisa' && !!cli[c] === !!item.regra[c]) && !(c !== 'modelo' && c !== 'incluirEnergisa' && +cli[c] === +item.regra[c]));
+      const vincular = !temUc(cli, k.uc);
+      if (mudou || vincular) {
+        const { id, ...resto } = cli; const novo = { ...resto, ...(item.regra || {}) };
+        if (vincular) { novo.ucs = [...ucsDe(cli), { uc: k.uc, titular: k.nome || '' }]; novo.uc = novo.ucs[0].uc; }
+        await salvar('clientes', cli.id, novo); cli = { id: cli.id, ...novo };
+      }
+    } else {
+      const n = item.novoCli; if (!n || !n.nome) { toast('Informe o nome do cliente.'); return false; }
+      const id = novoId(); const dados = { nome: n.nome, documento: n.documento || '', uc: k.uc, ucs: [{ uc: k.uc, titular: k.nome || '' }], endereco: n.endereco || '', telefone: n.telefone || '', email: n.email || '', modelo: n.modelo || 'percentual_creditos', desconto: +n.desconto || 0, descontoGD2: n.descontoGD2 != null && n.descontoGD2 !== '' ? +n.descontoGD2 : +n.desconto || 0, precoKwh: +n.precoKwh || 0, incluirEnergisa: !!n.incluirEnergisa, criadoEm: dataBR(new Date()) };
+      await salvar('clientes', id, dados); cli = { id, ...dados }; item.clienteId = id;
+    }
+    const titular = k.nome || (ucsDe(cli).find(u => soDig(u.uc) === soDig(k.uc)) || {}).titular || '';
+    const E = emp(); const dup = existente(item);
+    const numero = dup ? dup.numero : (+E.proximoNumero || 1);
+    const numeroTxt = String(numero).padStart(6, '0');
+    const V = calcular(k, cli);
+    const rk = refKey(k.mesRef, k.anoRef);
+    const anteriores = S.faturas.filter(f => f.clienteId === cli.id && f.refKey < rk).reduce((s, f) => s + (f.calculo.economia || 0), 0);
+    const conta = { distribuidora: k.distribuidora || '', uc: k.uc, mesRef: +k.mesRef, anoRef: +k.anoRef, vencimento: k.vencimento || '', totalConta: +k.totalConta || 0, consumoKwh: +k.consumoKwh || 0, compensadoKwh: +k.compensadoKwh || 0, valorCreditos: +k.valorCreditos || 0, ajusteGD: +k.ajusteGD || 0, creditosPorTipo: k.creditosPorTipo || [], injecoes: (k.injecoes || []).slice(0, 30), titular, titularDoc: k.documento || '', ligacao: k.ligacao || '', enderecoUc: k.endereco || '', tarifaConsumo: +k.tarifaConsumo || 0, tarifaCompensada: k.tarifaCompensada || null, leituraAnterior: k.leituraAnterior || '', leituraAtual: k.leituraAtual || '', dias: k.dias || null, notaFiscal: k.notaFiscal || '', saldoKwh: k.saldoKwh ?? null, historico: (k.historico || []).slice(-13), itens: (k.itens || []).slice(0, 20) };
+    const pixSel = escolherPix(E, { ...k, titular });
+    const empresaSnap = { nome: E.nome, cnpj: E.cnpj, endereco: E.endereco, telefone: E.telefone, email: E.email, cor: E.cor, pixChave: E.pixChave, pixNome: E.pixNome, pixCidade: E.pixCidade, mensagem: E.mensagem, logo: E.logo };
+    const fat = {
+      numero, numeroTxt, refKey: rk, clienteId: cli.id,
+      cliente: { nome: cli.nome, documento: cli.documento || '', uc: k.uc, titular, endereco: cli.endereco || k.endereco || '', telefone: cli.telefone || '', email: cli.email || '' },
+      conta, calculo: V, emissao: dataBR(new Date()), vencimento: item.venc, status: dup ? dup.status : 'aberta', pagaEm: dup ? (dup.pagaEm || '') : '',
+      economiaAcumulada: r2(anteriores + V.economia),
+      pix: pixSel ? pixPayload({ chave: pixSel.chave, nome: pixSel.nome, cidade: pixSel.cidade, valor: V.valorCobrado, txid: 'FAT' + numeroTxt }) : '',
+      pixInfo: pixSel || null,
+      empresa: empresaSnap
+    };
+    const id = dup ? dup.id : `${soDig(k.uc)}-${rk}`;
+    await salvar('faturas', id, fat);
+    if (!dup) await salvarEmpresa({ proximoNumero: numero + 1 });
+    fila.splice(fila.indexOf(item), 1);
+    if (!silencioso) { toast(`Fatura ${numeroTxt} gerada.`); render(); abrirFatura(id); }
+    return true;
+  } catch (e) { erroGravar(e); return false; }
+}
+async function gerarTodas() {
+  const itens = fila.filter(i => !i.carregando && !i.erro && i.conta);
+  let ok = 0; for (const it of itens) { if (await gerar(it, true)) ok++; }
+  toast(`${ok} fatura(s) gerada(s).${ok < itens.length ? ' Confira as que ficaram.' : ''}`, 4000);
+  render();
+}
+
+// ----- Clientes -----
+let buscaCli = '';
+function telaClientes(app) {
+  const lista = S.clientes.filter(c => !buscaCli || (c.nome + ' ' + ucsDe(c).map(u => u.uc + ' ' + u.titular).join(' ') + ' ' + c.documento).toLowerCase().includes(buscaCli.toLowerCase())).sort((a, b) => a.nome.localeCompare(b.nome));
+  const ultimo = c => S.faturas.filter(f => f.clienteId === c.id).sort((a, b) => b.refKey.localeCompare(a.refKey))[0];
+  app.innerHTML = `
+    <div class="linha" style="margin-bottom:16px"><div><h1>Clientes</h1><p class="sub" style="margin:0">Cada cliente pode ter várias UCs, inclusive em nome de outras pessoas (titulares das contas).</p></div><div class="esp"></div><button class="btn pri" id="bNovo">+ Novo cliente</button></div>
+    ${S.clientes.length ? `<label class="campo" style="max-width:340px;margin-bottom:12px">Buscar<input id="cBusca" value="${esc(buscaCli)}" placeholder="Nome, UC ou CPF"></label>` : ''}
+    <div class="card" style="padding:6px 8px"><div class="tabela"><table>
+      <thead><tr><th>Cliente</th><th>UCs (titular da conta)</th><th>Regra</th><th class="n">Faturas</th><th>Última</th><th class="n">Seu ganho</th></tr></thead>
+      <tbody>${lista.map(c => { const fs = S.faturas.filter(f => f.clienteId === c.id); const u = ultimo(c); return `<tr class="click" data-id="${esc(c.id)}"><td><b>${esc(c.nome)}</b><div class="pequeno">${esc(c.documento || '')}</div></td><td>${ucsDe(c).map(u => `<div>${esc(u.uc)}${u.titular ? ` <span class="pequeno">· ${esc(u.titular)}</span>` : ''}</div>`).join('') || '—'}</td>
+        <td>${c.modelo === 'preco_kwh' ? fmtR(c.precoKwh) + '/kWh' : fmtN(c.desconto, 1) + '%' + ' ' + (c.modelo === 'percentual_tarifa' ? 's/ tarifa cheia' : 's/ energia injetada')}${c.incluirEnergisa ? ' <span class="badge b-aberta">+ conta</span>' : ''}</td>
+        <td class="n">${fs.length}</td><td>${u ? esc(refTxt(u.conta.mesRef, u.conta.anoRef)) : '—'}</td><td class="n"><b>${fmtR(fs.reduce((s, f) => s + ganho(f), 0))}</b></td></tr>`; }).join('') || `<tr><td colspan="6" class="vazio">${S.clientes.length ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado. Você pode cadastrar aqui ou direto ao importar a primeira conta.'}</td></tr>`}</tbody>
+    </table></div></div>`;
+  $('#bNovo').onclick = () => editarCliente(null);
+  const cb = $('#cBusca'); if (cb) cb.oninput = e => { buscaCli = e.target.value; clearTimeout(cb._t); cb._t = setTimeout(() => { render(); requestAnimationFrame(() => { const n = $('#cBusca'); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }); }, 250); };
+  app.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => abrirCliente(tr.dataset.id));
+}
+function editarCliente(c) {
+  const dados = c ? { ...c, ucs: ucsDe(c).map(u => ({ ...u })) } : { ...NOVO_CLI(), ucs: [{ uc: '', titular: '' }] };
+  const ov = modal(`<div class="cab"><b>${c ? 'Editar cliente' : 'Novo cliente'}</b><div class="esp"></div><button class="btn" id="bFecharC">Fechar</button></div><div class="corpo"><div id="fc"></div>
+    <div class="secao" style="margin-top:18px">Unidades consumidoras (contas de energia)</div>
+    <p class="pequeno" style="margin:0 0 8px">A conta pode estar no nome de outra pessoa: informe a UC e o titular. A fatura sai no nome deste cliente.</p>
+    <div id="ucs"></div><button class="btn peq" id="bUc" style="margin-top:6px">+ Adicionar UC</button>
+    <div class="linha" style="margin-top:18px">${c ? '<button class="btn perigo" id="bEx">Excluir cliente</button>' : ''}<div class="esp"></div><button class="btn pri" id="bSal">Salvar</button></div></div>`, 'peq');
+  ov.querySelector('.modal').style.maxWidth = '640px';
+  const montar = () => { $('#fc', ov).innerHTML = formCliente(dados, 'ec'); ligarFormCliente(ov, 'ec', dados, montar); };
+  const montarUcs = () => {
+    $('#ucs', ov).innerHTML = dados.ucs.map((u, i) => `<div class="grade" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;gap:8px;margin-bottom:8px;align-items:end">
+      <label class="campo">UC<input data-u="${i}" data-f="uc" value="${esc(u.uc)}" placeholder="0.000.000.000-00"></label>
+      <label class="campo">Titular da conta<input data-u="${i}" data-f="titular" value="${esc(u.titular)}" placeholder="Nome na conta da Energisa"></label>
+      <button class="btn peq" data-rm="${i}" title="Remover UC">✕</button></div>`).join('') || '<p class="pequeno">Nenhuma UC.</p>';
+    $('#ucs', ov).querySelectorAll('[data-u]').forEach(i => i.addEventListener('input', () => { dados.ucs[+i.dataset.u][i.dataset.f] = i.value.trim(); }));
+    $('#ucs', ov).querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { dados.ucs.splice(+b.dataset.rm, 1); montarUcs(); });
+  };
+  montar(); montarUcs();
+  const inicial = JSON.stringify(dados);
+  $('#bFecharC', ov).onclick = async () => {
+    ov.querySelectorAll('[data-c]').forEach(i => i.dispatchEvent(new Event('change')));
+    if (JSON.stringify(dados) !== inicial && !(await confirmar('Descartar o que foi digitado?', 'As alterações deste cliente ainda não foram salvas.', 'Descartar'))) return;
+    fechar(ov);
+  };
+  $('#bUc', ov).onclick = () => { dados.ucs.push({ uc: '', titular: '' }); montarUcs(); };
+  $('#bSal', ov).onclick = async () => {
+    ov.querySelectorAll('[data-c]').forEach(i => i.dispatchEvent(new Event('change')));
+    if (!dados.nome) return toast('Informe o nome do cliente.');
+    dados.ucs = dados.ucs.filter(u => soDig(u.uc));
+    if (!dados.ucs.length) { montarUcs(); return toast('Informe pelo menos uma UC.'); }
+    const vistos = new Set();
+    for (const u of dados.ucs) {
+      const d = soDig(u.uc); if (vistos.has(d)) return toast('UC repetida: ' + u.uc); vistos.add(d);
+      const outro = S.clientes.find(x => temUc(x, u.uc) && (!c || x.id !== c.id)); if (outro) return toast(`A UC ${u.uc} já pertence a ${outro.nome}.`);
+    }
+    const { id, ...resto } = dados; resto.uc = dados.ucs[0].uc;
+    try { await salvar('clientes', c ? c.id : novoId(), resto); toast('Cliente salvo.'); fechar(ov); } catch (e) { erroGravar(e); }
+  };
+  const bx = $('#bEx', ov); if (bx) bx.onclick = async () => { if (await confirmar('Excluir cliente?', `${c.nome} será removido. As faturas já geradas continuam no histórico.`, 'Excluir')) { try { await apagar('clientes', c.id); fechar(ov); toast('Cliente excluído.'); } catch (e) { erroGravar(e); } } };
+}
+
+// ----- Painel (dashboard) -----
+const COR_A = '#2a78d6', COR_B = '#eb6834', COR_C = '#1baf7a';
+const MES_AB = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+let painelAno = null;
+const ganho = f => +(f.calculo && f.calculo.valorUsina) || 0;
+function fmtK(v) { v = +v || 0; if (Math.abs(v) >= 1e6) return (v / 1e6).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mi'; if (Math.abs(v) >= 1e4) return Math.round(v / 1e3).toLocaleString('pt-BR') + ' mil'; return Math.round(v).toLocaleString('pt-BR'); }
+function passoLimpo(max) { if (max <= 0) return 1; const bruto = max / 4; const p = Math.pow(10, Math.floor(Math.log10(bruto))); const n = bruto / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function barraTopo(x, y, w, h, r) { if (h <= 0) return ''; r = Math.min(r, h, w / 2); return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`; }
+
+// Gráfico de colunas (empilhadas quando há mais de uma série). dados: [{rotulo, valores:[...], dica}]
+function graficoColunas(dados, series, fmtEixo, W = 720) {
+  const H = 230, mE = 52, mD = 8, mT = 14, mB = 26;
+  const totais = dados.map(d => d.valores.reduce((a, b) => a + b, 0));
+  const passo = passoLimpo(Math.max(...totais, 0)); const topo = Math.max(passo * 4, passo * Math.ceil(Math.max(...totais, 0) / passo));
+  const ph = H - mT - mB, pw = W - mE - mD, slot = pw / dados.length, bw = Math.min(24, slot * .6);
+  const yv = v => mT + ph - (v / topo) * ph;
+  let g = '';
+  for (let t = 0; t <= topo + 1e-9; t += passo) { const y = yv(t); g += `<line x1="${mE}" x2="${W - mD}" y1="${y}" y2="${y}" stroke="#e8ecea" stroke-width="1"/><text x="${mE - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#5d6b65">${fmtEixo(t)}</text>`; }
+  dados.forEach((d, i) => {
+    const x = mE + i * slot + (slot - bw) / 2; let base = 0; const vis = d.valores.map((v, j) => [v, j]).filter(([v]) => v > 0);
+    vis.forEach(([v, j], k) => {
+      const y0 = yv(base), y1 = yv(base + v); const ult = k === vis.length - 1; const h = y0 - y1 - (k > 0 ? 2 : 0);
+      if (h > 0) g += ult ? `<path d="${barraTopo(x, y1, bw, h, 4)}" fill="${series[j].cor}"/>` : `<rect x="${x}" y="${y1}" width="${bw}" height="${h}" fill="${series[j].cor}"/>`;
+      base += v;
+    });
+    g += `<text x="${x + bw / 2}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#5d6b65">${esc(d.rotulo)}</text>`;
+    g += `<rect x="${mE + i * slot}" y="${mT}" width="${slot}" height="${ph + 6}" fill="transparent" data-dica="${esc(d.dica)}"/>`;
+  });
+  g += `<line x1="${mE}" x2="${W - mD}" y1="${yv(0)}" y2="${yv(0)}" stroke="#c9d2ce" stroke-width="1"/>`;
+  const leg = series.length > 1 ? `<div class="legenda">${series.map(s => `<span><i style="background:${s.cor}"></i>${esc(s.nome)}</span>`).join('')}</div>` : '';
+  return `${leg}<div class="graf"><svg viewBox="0 0 ${W} ${H}" width="100%" role="img">${g}</svg></div>`;
+}
+function ligarDicas(raiz) {
+  let tip = $('#dica'); if (!tip) { tip = document.createElement('div'); tip.id = 'dica'; tip.className = 'dica oculto'; document.body.appendChild(tip); }
+  raiz.querySelectorAll('[data-dica]').forEach(r => {
+    r.addEventListener('mousemove', e => { tip.innerHTML = r.dataset.dica; tip.classList.remove('oculto'); const w = tip.offsetWidth; tip.style.left = Math.min(window.innerWidth - w - 8, e.clientX + 14) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; r.setAttribute('fill', 'rgba(16,30,24,.04)'); });
+    r.addEventListener('mouseleave', () => { tip.classList.add('oculto'); r.setAttribute('fill', 'transparent'); });
+  });
+}
+function resumoMeses(fats) {
+  const m = Array.from({ length: 12 }, (_, i) => ({ mes: i + 1, n: 0, ganho: 0, ganhoPago: 0, ganhoAberto: 0, cobrado: 0, recebido: 0, kwh: 0, economia: 0 }));
+  for (const f of fats) { const x = m[(f.conta.mesRef || 1) - 1]; const pago = f.status === 'paga'; x.n++; x.ganho += ganho(f); x[pago ? 'ganhoPago' : 'ganhoAberto'] += ganho(f); x.cobrado += f.calculo.valorCobrado || 0; if (pago) x.recebido += f.calculo.valorCobrado || 0; x.kwh += f.calculo.kwh || 0; x.economia += f.calculo.economia || 0; }
+  return m;
+}
+function telaPainel(app) {
+  const anos = [...new Set(S.faturas.map(f => f.conta.anoRef))].filter(Boolean).sort((a, b) => b - a);
+  if (!painelAno || !anos.includes(painelAno)) painelAno = anos[0] || new Date().getFullYear();
+  const fats = S.faturas.filter(f => f.conta.anoRef === painelAno);
+  const soma = (arr, fn) => r2(arr.reduce((s, f) => s + fn(f), 0));
+  const tGanho = soma(fats, ganho), tGanhoPago = soma(fats.filter(f => f.status === 'paga'), ganho);
+  const tCobrado = soma(fats, f => f.calculo.valorCobrado), tRecebido = soma(fats.filter(f => f.status === 'paga'), f => f.calculo.valorCobrado);
+  const atras = S.faturas.filter(f => statusFatura(f) === 'atrasada');
+  const tKwh = fats.reduce((s, f) => s + (f.calculo.kwh || 0), 0), tEco = soma(fats, f => f.calculo.economia);
+  const comDesc = fats.filter(f => f.calculo.descontoPct != null);
+  const descMedio = comDesc.length ? comDesc.reduce((s, f) => s + f.calculo.descontoPct * f.calculo.base, 0) / Math.max(1, comDesc.reduce((s, f) => s + f.calculo.base, 0)) : null;
+  const ganhoTotal = soma(S.faturas, ganho);
+  const meses = resumoMeses(fats);
+  // ranking de clientes
+  const porCli = {}; for (const f of fats) { const c = porCli[f.clienteId] || (porCli[f.clienteId] = { id: f.clienteId, nome: f.cliente.nome, ganho: 0, n: 0, kwh: 0, aberto: 0 }); c.ganho += ganho(f); c.n++; c.kwh += f.calculo.kwh || 0; if (f.status !== 'paga') c.aberto += f.calculo.valorCobrado || 0; }
+  const ranking = Object.values(porCli).sort((a, b) => b.ganho - a.ganho); const maxR = Math.max(1, ...ranking.map(r => r.ganho));
+  // por chave Pix (titular)
+  const porPix = {}; for (const f of fats) { const k = f.pixInfo ? (f.pixInfo.titular || f.pixInfo.nome || 'Empresa') : 'Sem Pix'; const p = porPix[k] || (porPix[k] = { nome: k, chave: f.pixInfo ? f.pixInfo.chave : '—', recebido: 0, aberto: 0 }); if (f.status === 'paga') p.recebido += f.calculo.valorCobrado || 0; else p.aberto += f.calculo.valorCobrado || 0; }
+  app.innerHTML = `
+    <div class="linha" style="margin-bottom:16px"><div><h1>Painel</h1><p class="sub" style="margin:0">Quanto suas usinas estão rendendo, mês a mês.</p></div><div class="esp"></div>
+      <label class="campo" style="min-width:120px">Ano<select id="pAno">${(anos.length ? anos : [painelAno]).map(a => `<option ${a === painelAno ? 'selected' : ''}>${a}</option>`).join('')}</select></label></div>
+    ${!S.faturas.length ? `<div class="card vazio"><p style="font-size:16px;font-weight:600;color:var(--ink)">Ainda não há faturas</p><p>O painel se preenche conforme você gera as faturas.</p><a class="btn pri" href="#nova">Importar conta</a></div>` : `
+    <div class="tiles">
+      <div class="tile verde"><div class="k">Seu ganho em ${painelAno}</div><div class="v">${fmtR(tGanho)}</div><div class="pequeno">energia injetada com desconto</div></div>
+      <div class="tile"><div class="k">Ganho já recebido</div><div class="v">${fmtR(tGanhoPago)}</div><div class="pequeno">${tGanho ? fmtP(tGanhoPago / tGanho) : '—'} do ganho do ano</div></div>
+      <div class="tile"><div class="k">A receber (total das faturas)</div><div class="v">${fmtR(r2(tCobrado - tRecebido))}</div><div class="pequeno">recebido: ${fmtR(tRecebido)}</div></div>
+      <div class="tile ${atras.length ? 'alerta' : ''}"><div class="k">Em atraso</div><div class="v">${fmtR(soma(atras, f => f.calculo.valorCobrado))}</div><div class="pequeno">${atras.length} fatura(s)</div></div>
+      <div class="tile"><div class="k">Energia compensada</div><div class="v">${fmtN(tKwh)} kWh</div><div class="pequeno">${fats.length} fatura(s) no ano</div></div>
+      <div class="tile"><div class="k">Economia dos clientes</div><div class="v">${fmtR(tEco)}</div><div class="pequeno">desconto médio ${descMedio != null ? fmtP(descMedio) : '—'}</div></div>
+    </div>
+    <p class="pequeno" style="margin:-6px 0 14px">Ganho total desde o início: <b style="color:var(--ink)">${fmtR(ganhoTotal)}</b> em ${S.faturas.length} faturas. O ganho não inclui o valor da conta da Energisa que você repassa.</p>
+    <div class="cols" style="grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+      <div class="card"><h2>Seu ganho por mês (R$)</h2>${graficoColunas(meses.map(x => ({ rotulo: MES_AB[x.mes - 1], valores: [x.ganhoPago, x.ganhoAberto], dica: `<b>${MESES_N[x.mes - 1]}/${painelAno}</b><br>Ganho: ${fmtR(x.ganho)}<br><i style="background:${COR_A}"></i>Recebido: ${fmtR(x.ganhoPago)}<br><i style="background:${COR_B}"></i>A receber: ${fmtR(x.ganhoAberto)}<br>${x.n} fatura(s)` })), [{ nome: 'Recebido', cor: COR_A }, { nome: 'A receber', cor: COR_B }], fmtK, 640)}</div>
+      <div class="card"><h2>Energia compensada por mês (kWh)</h2>${graficoColunas(meses.map(x => ({ rotulo: MES_AB[x.mes - 1], valores: [x.kwh], dica: `<b>${MESES_N[x.mes - 1]}/${painelAno}</b><br>${fmtN(x.kwh)} kWh compensados<br>Economia dos clientes: ${fmtR(x.economia)}` })), [{ nome: 'kWh', cor: COR_C }], fmtK, 440)}</div>
+    </div>
+    <div class="cols" style="margin-top:16px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+      <div class="card"><h2>Ganho por cliente em ${painelAno}</h2>
+        ${ranking.length ? ranking.map(r => `<div class="rank click" data-cli="${esc(r.id)}"><div class="rk-n"><b>${esc(r.nome)}</b><span class="pequeno">${r.n} fatura(s) · ${fmtN(r.kwh)} kWh${r.aberto > 0 ? ` · <span style="color:#8a5d00">${fmtR(r.aberto)} em aberto</span>` : ''}</span></div><div class="rk-b"><div style="width:${Math.max(2, r.ganho / maxR * 100)}%"></div></div><div class="rk-v">${fmtR(r.ganho)}</div></div>`).join('') : '<p class="pequeno">Sem faturas neste ano.</p>'}
+      </div>
+      <div>
+        <div class="card"><h2>Recebimentos por chave Pix</h2><div class="tabela"><table><thead><tr><th>Titular</th><th class="n">Recebido</th><th class="n">A receber</th></tr></thead><tbody>
+          ${Object.values(porPix).map(p => `<tr><td><b>${esc(p.nome)}</b><div class="pequeno">${esc(p.chave)}</div></td><td class="n">${fmtR(p.recebido)}</td><td class="n">${fmtR(p.aberto)}</td></tr>`).join('') || '<tr><td colspan="3" class="pequeno">—</td></tr>'}</tbody></table></div></div>
+        <div class="card" style="margin-top:16px"><h2>Faturas em atraso</h2>
+          ${atras.length ? `<div class="tabela"><table><tbody>${atras.sort((a, b) => deBR(a.vencimento) - deBR(b.vencimento)).map(f => `<tr class="click" data-fat="${esc(f.id)}"><td><b>${esc(f.cliente.nome)}</b><div class="pequeno">${esc(refTxt(f.conta.mesRef, f.conta.anoRef))} · venceu ${esc(f.vencimento)}</div></td><td class="n"><b>${fmtR(f.calculo.valorCobrado)}</b></td></tr>`).join('')}</tbody></table></div>` : '<p class="pequeno" style="margin:0">Nenhuma fatura atrasada. 👍</p>'}
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px"><h2>Mês a mês em ${painelAno}</h2><div class="tabela"><table>
+      <thead><tr><th>Mês</th><th class="n">Faturas</th><th class="n">kWh</th><th class="n">Seu ganho</th><th class="n">Ganho recebido</th><th class="n">Total faturado</th><th class="n">Recebido</th><th class="n">Economia clientes</th></tr></thead>
+      <tbody>${meses.filter(x => x.n).map(x => `<tr><td>${MESES_N[x.mes - 1]}</td><td class="n">${x.n}</td><td class="n">${fmtN(x.kwh)}</td><td class="n"><b>${fmtR(x.ganho)}</b></td><td class="n">${fmtR(x.ganhoPago)}</td><td class="n">${fmtR(x.cobrado)}</td><td class="n">${fmtR(x.recebido)}</td><td class="n">${fmtR(x.economia)}</td></tr>`).join('')}
+      <tr style="font-weight:700"><td>Total</td><td class="n">${fats.length}</td><td class="n">${fmtN(tKwh)}</td><td class="n">${fmtR(tGanho)}</td><td class="n">${fmtR(tGanhoPago)}</td><td class="n">${fmtR(tCobrado)}</td><td class="n">${fmtR(tRecebido)}</td><td class="n">${fmtR(tEco)}</td></tr></tbody>
+    </table></div></div>`}`;
+  const sa = $('#pAno'); if (sa) sa.onchange = e => { painelAno = +e.target.value; render(); };
+  ligarDicas(app);
+  app.querySelectorAll('[data-cli]').forEach(el => el.onclick = () => abrirCliente(el.dataset.cli));
+  app.querySelectorAll('[data-fat]').forEach(el => el.onclick = () => abrirFatura(el.dataset.fat));
+}
+
+// ----- Ficha do cliente: histórico mês a mês -----
+function abrirCliente(id) {
+  const c = S.clientes.find(x => x.id === id);
+  const fats = S.faturas.filter(f => f.clienteId === id).sort((a, b) => b.refKey.localeCompare(a.refKey) || (a.cliente.uc || '').localeCompare(b.cliente.uc || ''));
+  const nome = c ? c.nome : (fats[0] ? fats[0].cliente.nome : 'Cliente');
+  const soma = (arr, fn) => r2(arr.reduce((s, f) => s + fn(f), 0));
+  const gT = soma(fats, ganho), gP = soma(fats.filter(f => f.status === 'paga'), ganho);
+  const aberto = soma(fats.filter(f => f.status !== 'paga'), f => f.calculo.valorCobrado);
+  const porMes = {}; for (const f of fats) { const m = porMes[f.refKey] || (porMes[f.refKey] = { k: f.refKey, mes: f.conta.mesRef, ano: f.conta.anoRef, pago: 0, aberto: 0 }); m[f.status === 'paga' ? 'pago' : 'aberto'] += ganho(f); }
+  const serie = Object.values(porMes).sort((a, b) => a.k.localeCompare(b.k)).slice(-12);
+  const ov = modal(`<div class="cab"><div><b style="font-size:17px">${esc(nome)}</b><div class="pequeno">${[c?.documento ? esc(c.documento) : '', c ? 'UC ' + ucsDe(c).map(u => esc(u.uc) + (u.titular ? ' (' + esc(u.titular) + ')' : '')).join(', ') : ''].filter(Boolean).join(' · ')}</div></div><div class="esp"></div>${c ? '<button class="btn" id="bEditC">Editar cadastro</button>' : ''}<button class="btn" data-fechar>Fechar</button></div>
+    <div class="corpo">
+      <div class="tiles">
+        <div class="tile verde"><div class="k">Você já ganhou deste cliente</div><div class="v">${fmtR(gT)}</div><div class="pequeno">recebido: ${fmtR(gP)}</div></div>
+        <div class="tile"><div class="k">Em aberto</div><div class="v">${fmtR(aberto)}</div><div class="pequeno">${fats.filter(f => f.status !== 'paga').length} fatura(s)</div></div>
+        <div class="tile"><div class="k">Energia compensada</div><div class="v">${fmtN(fats.reduce((s, f) => s + (f.calculo.kwh || 0), 0))} kWh</div><div class="pequeno">${fats.length} fatura(s)</div></div>
+        <div class="tile"><div class="k">Economia que ele teve</div><div class="v">${fmtR(soma(fats, f => f.calculo.economia))}</div><div class="pequeno">desconto atual: ${c ? (c.modelo === 'preco_kwh' ? fmtR(c.precoKwh) + '/kWh' : fmtN(c.desconto, 1) + '%') : '—'}</div></div>
+      </div>
+      ${serie.length > 1 ? `<div class="card" style="box-shadow:none"><h2>Ganho por mês (R$)</h2>${graficoColunas(serie.map(x => ({ rotulo: MES_AB[x.mes - 1] + '/' + String(x.ano).slice(2), valores: [x.pago, x.aberto], dica: `<b>${refTxt(x.mes, x.ano)}</b><br><i style="background:${COR_A}"></i>Recebido: ${fmtR(x.pago)}<br><i style="background:${COR_B}"></i>A receber: ${fmtR(x.aberto)}` })), [{ nome: 'Recebido', cor: COR_A }, { nome: 'A receber', cor: COR_B }], fmtK, 1000)}</div>` : ''}
+      <h2 style="margin-top:16px">Histórico mês a mês</h2>
+      <div class="tabela"><table>
+        <thead><tr><th>Referência</th><th>UC</th><th class="n">kWh</th><th class="n">Desconto</th><th class="n">Seu ganho</th><th class="n">Conta Energisa</th><th class="n">Total cobrado</th><th class="n">Economia</th><th>Situação</th></tr></thead>
+        <tbody>${fats.map(f => { const st = statusFatura(f); return `<tr class="click" data-fat="${esc(f.id)}"><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}<div class="pequeno">Nº ${esc(f.numeroTxt)}</div></td><td class="pequeno">${esc(f.cliente.uc)}</td><td class="n">${fmtN(f.calculo.kwh)}</td>
+          <td class="n">${textoDesconto(f.calculo)}</td><td class="n"><b>${fmtR(ganho(f))}</b></td><td class="n">${f.calculo.incluirEnergisa ? fmtR(f.calculo.totalConta) : '—'}</td><td class="n">${fmtR(f.calculo.valorCobrado)}</td><td class="n">${fmtR(f.calculo.economia)}</td><td><span class="badge b-${st}">${ROT_STATUS[st]}</span></td></tr>`; }).join('') || '<tr><td colspan="9" class="vazio">Nenhuma fatura ainda.</td></tr>'}
+        ${fats.length ? `<tr style="font-weight:700"><td colspan="2">Total</td><td class="n">${fmtN(fats.reduce((s, f) => s + (f.calculo.kwh || 0), 0))}</td><td></td><td class="n">${fmtR(gT)}</td><td></td><td class="n">${fmtR(soma(fats, f => f.calculo.valorCobrado))}</td><td class="n">${fmtR(soma(fats, f => f.calculo.economia))}</td><td></td></tr>` : ''}</tbody>
+      </table></div>
+    </div>`);
+  ov.querySelector('.modal').style.maxWidth = '1080px';
+  ligarDicas(ov);
+  ov.querySelectorAll('[data-fat]').forEach(tr => tr.onclick = () => abrirFatura(tr.dataset.fat));
+  const be = $('#bEditC', ov); if (be) be.onclick = () => { ov.remove(); editarCliente(c); };
+}
+
+// ----- Alterar o desconto de uma fatura já gerada -----
+async function recalcularFatura(f, regra) {
+  const { id, ...d } = f;
+  const V = calcular(f.conta, { ...regra });
+  const anteriores = S.faturas.filter(x => x.clienteId === f.clienteId && x.refKey < f.refKey).reduce((s, x) => s + (x.calculo.economia || 0), 0);
+  const pi = f.pixInfo || (f.empresa && f.empresa.pixChave ? { chave: f.empresa.pixChave, nome: f.empresa.pixNome || f.empresa.nome, cidade: f.empresa.pixCidade } : null);
+  const novo = { ...d, calculo: V, economiaAcumulada: r2(anteriores + V.economia), pix: pi ? pixPayload({ chave: pi.chave, nome: pi.nome, cidade: pi.cidade, valor: V.valorCobrado, txid: 'FAT' + f.numeroTxt }) : '' };
+  await salvar('faturas', id, novo);
+  return { id, ...novo };
+}
+
+// ----- Minha empresa -----
+let empresaPendente = false;
+function telaEmpresa(app) {
+  const E = emp();
+  app.innerHTML = `
+    <h1>Minha empresa</h1><p class="sub">Esses dados aparecem no cabeçalho e no rodapé das faturas.</p>
+    <div class="cols">
+      <div class="card">
+        <h2>Identificação</h2>
+        <div class="grade g2">
+          <label class="campo" style="grid-column:1/-1">Nome da empresa<input data-e="nome" value="${esc(E.nome)}"></label>
+          <label class="campo">CNPJ<input data-e="cnpj" value="${esc(E.cnpj)}"></label>
+          <label class="campo">Telefone / WhatsApp<input data-e="telefone" value="${esc(E.telefone)}"></label>
+          <label class="campo" style="grid-column:1/-1">Endereço<input data-e="endereco" value="${esc(E.endereco)}"></label>
+          <label class="campo" style="grid-column:1/-1">E-mail<input data-e="email" value="${esc(E.email)}"></label>
+          <label class="campo" style="grid-column:1/-1">Mensagem no rodapé da fatura<textarea data-e="mensagem" rows="2">${esc(E.mensagem)}</textarea></label>
+        </div>
+        <h2 style="margin-top:20px">Pagamento por Pix</h2>
+        <div class="grade g2">
+          <label class="campo" style="grid-column:1/-1">Chave Pix<input data-e="pixChave" value="${esc(E.pixChave)}" placeholder="CNPJ, e-mail, telefone ou chave aleatória"></label>
+          <label class="campo">Nome do recebedor (como no banco)<input data-e="pixNome" value="${esc(E.pixNome)}"></label>
+          <label class="campo">Cidade<input data-e="pixCidade" value="${esc(E.pixCidade)}"></label>
+        </div>
+        <p class="pequeno">Chave padrão, usada quando a conta não tem uma chave específica abaixo. Telefone deve ter DDD.</p>
+        <h2 style="margin-top:20px">Chave Pix por titular da conta</h2>
+        <p class="pequeno" style="margin-top:-6px">Quando a conta de energia importada estiver no nome desta pessoa (pelo CPF ou pelo nome), a fatura usa esta chave Pix.</p>
+        <div id="pixT"></div>
+        <button class="btn peq" id="bAddPix">+ Adicionar titular</button>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Logo e cor</h2>
+          <div class="linha"><div class="logo-prev" id="lp">${E.logo ? `<img src="${esc(E.logo)}" alt="Logo">` : '<span class="pequeno">Sem logo</span>'}</div>
+          <div><label class="btn">Enviar logo<input type="file" id="logoArq" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden></label>${E.logo ? '<div style="margin-top:6px"><button class="btn peq perigo" id="bTiraLogo">Remover</button></div>' : ''}<p class="pequeno" style="margin:6px 0 0">PNG com fundo transparente fica melhor.</p></div></div>
+          <label class="campo" style="margin-top:14px;max-width:200px">Cor principal<input type="color" data-e="cor" value="${esc(E.cor || '#12715b')}" style="height:40px;padding:3px"></label>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h2>Numeração e prazo</h2>
+          <div class="grade g2">
+            <label class="campo">Próximo nº de fatura<input data-e="proximoNumero" type="number" min="1" value="${esc(E.proximoNumero)}"></label>
+            <label class="campo">Vencimento (dias após gerar)<input data-e="diasVencimento" type="number" min="0" value="${esc(E.diasVencimento)}"></label>
+          </div>
+        </div>
+        ${S.local ? `<div class="card" style="margin-top:16px"><h2>Atualizações</h2><p class="pequeno" id="verProg" style="margin:0 0 10px">${textoVersao(S.atualizacao) || 'Versão do programa: …'}</p><p class="pequeno" style="margin:0 0 10px">O programa procura versões novas sozinho ao abrir e a cada 6 horas.</p><button class="btn" id="bVerif">Procurar atualização agora</button></div>` : ''}
+        <div class="linha" style="margin-top:16px"><div class="esp"></div><button class="btn" id="bTeste">Ver fatura de exemplo</button><span class="pequeno" id="stE">As alterações são salvas automaticamente.</span><button class="btn pri" id="bSalvarE">Salvar</button></div>
+      </div>
+    </div>`;
+  const novo = {};
+  const pt = (E.pixTitulares || []).map(x => ({ ...x }));
+  const montarPix = () => {
+    $('#pixT').innerHTML = pt.map((t, i) => `<div class="grade" style="grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1fr) auto;gap:8px;margin-bottom:8px;align-items:end">
+      <label class="campo">Titular da conta<input data-p="${i}" data-f="titular" value="${esc(t.titular)}"></label>
+      <label class="campo">CPF do titular<input data-p="${i}" data-f="cpf" value="${esc(t.cpf || '')}"></label>
+      <label class="campo">Chave Pix<input data-p="${i}" data-f="chave" value="${esc(t.chave)}"></label>
+      <button class="btn peq" data-rp="${i}">✕</button></div>`).join('');
+    $('#pixT').querySelectorAll('[data-p]').forEach(inp => inp.addEventListener('input', () => { pt[+inp.dataset.p][inp.dataset.f] = inp.value.trim(); novo.pixTitulares = pt; salvarAuto(); }));
+    $('#pixT').querySelectorAll('[data-rp]').forEach(b => b.onclick = () => { pt.splice(+b.dataset.rp, 1); novo.pixTitulares = pt; montarPix(); salvarAuto(true); });
+  };
+  montarPix();
+  $('#bAddPix').onclick = () => { pt.push({ titular: '', cpf: '', chave: '' }); novo.pixTitulares = pt; montarPix(); };
+  app.querySelectorAll('[data-e]').forEach(i => i.addEventListener('input', () => { novo[i.dataset.e] = ['proximoNumero', 'diasVencimento'].includes(i.dataset.e) ? (parseInt(i.value) || 0) : i.value; salvarAuto(); }));
+  // Salva sozinho enquanto você digita (não perde nada ao trocar de aba)
+  let tAuto = null;
+  async function salvarAuto(agora) {
+    const st = $('#stE'); if (st) st.textContent = 'Salvando…';
+    clearTimeout(tAuto); empresaPendente = true;
+    tAuto = setTimeout(async () => {
+      const d = { ...novo }; if (d.pixTitulares) d.pixTitulares = pt.filter(t => t.titular || t.cpf || t.chave);
+      try { await salvarEmpresa(d); empresaPendente = false; const s2 = $('#stE'); if (s2) s2.textContent = '✓ Tudo salvo'; } catch (e) { erroGravar(e); const s2 = $('#stE'); if (s2) s2.textContent = 'Não foi possível salvar'; }
+    }, agora ? 0 : 700);
+  }
+  $('#bSalvarE').onclick = () => salvarAuto(true);
+  $('#logoArq').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const url = await reduzirLogo(f); await salvarEmpresa({ ...novo, logo: url }); toast('Logo atualizada.'); } catch (er) { erroGravar(er); } };
+  const tl = $('#bTiraLogo'); if (tl) tl.onclick = async () => { try { await salvarEmpresa({ ...novo, logo: '' }); } catch (er) { erroGravar(er); } };
+  $('#bTeste').onclick = () => faturaExemplo({ ...emp(), ...novo });
+  const bv = $('#bVerif'); if (bv) bv.onclick = async () => { bv.disabled = true; try { await fetch('/api/atualizacao', { method: 'POST' }); } catch (e) {} const v = $('#verProg'); if (v) v.innerHTML = 'Procurando atualização…'; setTimeout(async () => { await checarAtualizacao(); bv.disabled = false; }, 4000); };
+}
+async function reduzirLogo(arq) {
+  const url = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(arq); });
+  const img = await carregarImg(url); if (!img) throw new Error('Imagem inválida');
+  const max = 600; const s = Math.min(1, max / img.width, 240 / img.height);
+  const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(img.width * s)); cv.height = Math.max(1, Math.round(img.height * s));
+  cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+  let out = cv.toDataURL('image/png');
+  if (out.length > 180000) { const c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height; const g = c2.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c2.width, c2.height); g.drawImage(cv, 0, 0); out = c2.toDataURL('image/jpeg', .9); }
+  return out;
+}
+async function faturaExemplo(E) {
+  const k = { distribuidora: 'Energisa Paraíba', uc: '2.043.282.053-49', mesRef: 10, anoRef: 2026, vencimento: '21/10/2026', totalConta: 143.54, consumoKwh: 442, compensadoKwh: 342, valorCreditos: 290.95, tarifaConsumo: 0.97753, leituraAnterior: '02/09/2026', leituraAtual: '02/10/2026', dias: 30, notaFiscal: '009.427.231', saldoKwh: 1922, historico: [['NOV/25', 127], ['DEZ/25', 192], ['JAN/26', 126], ['FEV/26', 322], ['MAR/26', 404], ['ABR/26', 405], ['MAI/26', 476], ['JUN/26', 414], ['JUL/26', 439], ['AGO/26', 440], ['SET/26', 512], ['OUT/26', 442]].map(([mes, kwh]) => ({ mes, kwh })) };
+  const cli = { nome: 'Cliente Exemplo', documento: '000.000.000-00', uc: k.uc, titular: 'FLAVIA JANYNNE PEREIRA DO NASCIMENTO', endereco: 'Rua Exemplo, 100 - São Gonçalo', modelo: 'percentual_creditos', desconto: 15, incluirEnergisa: true };
+  const V = calcular(k, cli);
+  const f = { numeroTxt: '000000', emissao: dataBR(new Date()), vencimento: vencPadrao(), cliente: cli, conta: k, calculo: V, economiaAcumulada: V.economia * 3, empresa: E, pix: E.pixChave ? pixPayload({ chave: E.pixChave, nome: E.pixNome || E.nome, cidade: E.pixCidade, valor: V.valorCobrado, txid: 'EXEMPLO' }) : '' };
+  const ov = modal(`<div class="cab"><b>Fatura de exemplo</b><span class="pequeno">com os dados da conta enviada e 15% de desconto</span><div class="esp"></div><button class="btn" data-fechar>Fechar</button></div><div class="corpo"><div id="pv"><p class="vazio"><span class="carregando"></span></p></div></div>`);
+  const cv = await desenharFatura(f); $('#pv', ov).innerHTML = `<img src="${cv.toDataURL('image/png')}" style="width:100%;max-width:760px;display:block;margin:0 auto;border:1px solid var(--line)">`;
+}
+
+// ======================= Início =======================
+aplicarMarca(); lerRota(); iniciarDados();
+</script>
+</body>
+</html>

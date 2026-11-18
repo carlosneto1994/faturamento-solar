@@ -56,6 +56,10 @@ func main() {
 		log.SetOutput(f)
 	}
 	url := "http://" + porta + "/"
+	if len(os.Args) > 1 && os.Args[1] == "--avisos" { // chamado pela tarefa agendada
+		modoAvisos()
+		return
+	}
 	semJanela := len(os.Args) > 1 && os.Args[1] == "--sem-janela"
 	limparAntigo()
 
@@ -144,6 +148,54 @@ func main() {
 			http.Error(w, "método", 405)
 		}
 	})
+	mux.HandleFunc("/api/avisos/executar", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "método", 405)
+			return
+		}
+		res := executarAvisos("verificação manual")
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	})
+	mux.HandleFunc("/api/avisos/testar", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "método", 405)
+			return
+		}
+		db.mu.Lock()
+		cfg, empresa := lerCfgAvisos()
+		db.mu.Unlock()
+		msg := "☀ Faturamento Solar: teste de aviso pelo WhatsApp. Se você recebeu esta mensagem, os avisos de vencimento vão chegar aqui."
+		if empresa != "" {
+			msg += " (" + empresa + ")"
+		}
+		res := map[string]string{"whats": "ok", "windows": "ok"}
+		if err := enviarWhatsApp(cfg, msg); err != nil {
+			res["whats"] = err.Error()
+		}
+		if err := notificarWindows("Faturamento Solar: teste de aviso", "As notificações de vencimento vão aparecer assim."); err != nil {
+			res["windows"] = err.Error()
+		}
+		log.Println("teste de avisos:", res)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	})
+	mux.HandleFunc("/api/avisos/agendar", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "método", 405)
+			return
+		}
+		db.mu.Lock()
+		cfg, _ := lerCfgAvisos()
+		db.mu.Unlock()
+		res := map[string]string{"agenda": "ok", "horario": cfg.Horario}
+		if err := agendarTarefa(cfg.Horario); err != nil {
+			res["agenda"] = err.Error()
+			log.Println("agendar avisos:", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	})
 	mux.HandleFunc("/api/dados", apiDados)
 	mux.HandleFunc("/api/doc/", apiDoc)
 	mux.HandleFunc("/api/arquivo", apiArquivo)
@@ -180,6 +232,15 @@ func main() {
 	if os.Getenv("FATSOLAR_SEM_ATUALIZAR") == "" {
 		go cicloAtualizacao()
 	}
+	go cicloAvisos()
+	go func() {
+		db.mu.Lock()
+		cfg, _ := lerCfgAvisos()
+		db.mu.Unlock()
+		if err := agendarTarefa(cfg.Horario); err != nil {
+			log.Println("agendar avisos:", err)
+		}
+	}()
 	log.Println("iniciado versão", versaoAtual, "em", url, "dados em", pastaBase)
 	srv = &http.Server{Handler: protegido(mux), ReadHeaderTimeout: 10 * time.Second}
 	log.Println(srv.Serve(ln))

@@ -3,12 +3,15 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
+	"unicode/utf16"
 	"unsafe"
 )
 
@@ -98,6 +101,7 @@ func desinstalar() {
 	}
 	ps := `$n='Faturamento Solar.lnk'; foreach($d in @([Environment]::GetFolderPath('Desktop'),[Environment]::GetFolderPath('Programs'))){ $f=Join-Path $d $n; if(Test-Path $f){Remove-Item $f -Force} }`
 	_ = oculto(exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps)).Run()
+	_ = oculto(exec.Command("schtasks", "/Delete", "/F", "/TN", "Faturamento Solar Avisos")).Run()
 	_ = oculto(exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\FaturamentoSolar`, "/f")).Run()
 	exe, _ := os.Executable()
 	dir := filepath.Dir(exe)
@@ -106,3 +110,73 @@ func desinstalar() {
 }
 
 func prepararProcesso(c *exec.Cmd) {}
+
+func escXML(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;", "'", "&apos;")
+	return r.Replace(s)
+}
+
+// Notificação do Windows (canto da tela). Usa o PowerShell, que já vem no Windows 10/11.
+func notificarWindows(titulo, corpo string) error {
+	xml := `<toast scenario="reminder"><visual><binding template="ToastGeneric"><text>` + escXML(titulo) + `</text><text>` + escXML(corpo) + `</text></binding></visual><actions><action content="OK" arguments="ok" activationType="system"/></actions></toast>`
+	ps := `$ErrorActionPreference='Stop';` +
+		`[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;` +
+		`[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null;` +
+		`$x = New-Object Windows.Data.Xml.Dom.XmlDocument; $x.LoadXml('` + strings.ReplaceAll(xml, "'", "''") + `');` +
+		`$t = [Windows.UI.Notifications.ToastNotification]::new($x);` +
+		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($t)`
+	if err := oculto(exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps)).Run(); err != nil {
+		// sem notificação: mostra uma janela de aviso
+		go caixa(titulo+"\n\n"+corpo, "Faturamento Solar - Avisos", mbOK|mbIconInfo|0x40000) // MB_TOPMOST
+		time.Sleep(200 * time.Millisecond)
+		return err
+	}
+	return nil
+}
+
+// Tarefa agendada do Windows: roda "FaturamentoSolar.exe --avisos" todo dia no horário escolhido
+// (se o computador estiver desligado no horário, roda assim que ligar).
+func agendarTarefa(horario string) error {
+	exe := caminhoExe
+	if exe == "" {
+		return nil
+	}
+	if len(horario) != 5 || horario[2] != ':' {
+		horario = "08:00"
+	}
+	xml := `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>Avisos de vencimento do Faturamento Solar</Description></RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger><StartBoundary>2026-01-01T` + horario + `:00</StartBoundary><Enabled>true</Enabled><ScheduleByDay><DaysInterval>1</DaysInterval></ScheduleByDay></CalendarTrigger>
+  </Triggers>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>
+    <Enabled>true</Enabled>
+  </Settings>
+  <Actions Context="Author"><Exec><Command>` + escXML(exe) + `</Command><Arguments>--avisos</Arguments></Exec></Actions>
+</Task>`
+	// o schtasks lê o XML em UTF-16
+	u := utf16.Encode([]rune(xml))
+	buf := make([]byte, 2+2*len(u))
+	buf[0], buf[1] = 0xFF, 0xFE
+	for i, c := range u {
+		buf[2+2*i] = byte(c)
+		buf[3+2*i] = byte(c >> 8)
+	}
+	arq := filepath.Join(os.TempDir(), "faturamento-solar-avisos.xml")
+	if err := os.WriteFile(arq, buf, 0o644); err != nil {
+		return err
+	}
+	defer os.Remove(arq)
+	out, err := oculto(exec.Command("schtasks", "/Create", "/F", "/TN", "Faturamento Solar Avisos", "/XML", arq)).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}

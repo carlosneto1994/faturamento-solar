@@ -105,6 +105,8 @@ tr.click:hover td{background:#f8faf9}
 .carregando{display:inline-block;width:14px;height:14px;border:2px solid #cfd8d4;border-top-color:var(--pri);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px}
 @keyframes g{to{transform:rotate(360deg)}}
 .oculto{display:none!important}
+.b-energ{background:#fdeee4;color:#a8461c}
+.b-receb{background:#e7f0fb;color:#1f5fa8}
 .versao{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 10px;white-space:nowrap}
 .versao.nova{background:var(--pri-soft);color:var(--pri-2);border-color:#bfe0d5;cursor:pointer}
 .versao:empty{display:none}
@@ -136,6 +138,7 @@ table.inj tr.tot-inj td{border-bottom:none}
     <a href="#painel" data-r="painel">Painel</a>
     <a href="#faturas" data-r="faturas">Faturas</a>
     <a href="#nova" data-r="nova">Nova fatura</a>
+    <a href="#avisos" data-r="avisos">Avisos</a>
     <a href="#clientes" data-r="clientes">Clientes</a>
     <a href="#empresa" data-r="empresa">Minha empresa</a>
   </nav>
@@ -641,11 +644,14 @@ function pdfDeJpeg(jpegBytes, wPx, hPx) {
 const canvasBlob = (cv, tipo, q) => new Promise(r => cv.toBlob(r, tipo, q));
 
 // ======================= Roteamento e render =======================
-const ROTAS = ['painel', 'faturas', 'nova', 'clientes', 'empresa'];
+const ROTAS = ['painel', 'faturas', 'nova', 'avisos', 'clientes', 'empresa'];
 let rota = 'painel';
 function pendencias() { return fila.filter(i => !i.erro).length; }
 window.addEventListener('beforeunload', e => { if (pendencias() || empresaPendente) { e.preventDefault(); e.returnValue = ''; } });
-function atualizarNav() { const a = document.querySelector('#nav a[data-r="nova"]'); if (a) { const n = pendencias(); a.innerHTML = 'Nova fatura' + (n ? ` <span class="badge b-aberta">${n}</span>` : ''); } }
+function atualizarNav() {
+  const a = document.querySelector('#nav a[data-r="nova"]'); if (a) { const n = pendencias(); a.innerHTML = 'Nova fatura' + (n ? ` <span class="badge b-aberta">${n}</span>` : ''); }
+  const v = document.querySelector('#nav a[data-r="avisos"]'); if (v) { let n = 0; try { n = contarAvisos(); } catch (e) {} v.innerHTML = 'Avisos' + (n ? ` <span class="badge b-atrasada">${n}</span>` : ''); }
+}
 function lerRota() { const h = location.hash.replace('#', ''); rota = ROTAS.includes(h) ? h : 'painel'; document.querySelectorAll('#nav a').forEach(a => a.classList.toggle('on', a.dataset.r === rota)); render(); }
 window.addEventListener('hashchange', lerRota);
 
@@ -664,11 +670,12 @@ function render() {
   requestAnimationFrame(() => {
     renderPendente = false; atualizarNav();
     const ativo = document.activeElement;
-    if (ativo && ativo.matches && ativo.matches('#app input,#app textarea,#app select') && ativo.type !== 'file' && rota !== 'faturas' && rota !== 'clientes' && rota !== 'painel') { renderAdiado = true; return; } // não atrapalhar quem digita
+    if (ativo && ativo.matches && ativo.matches('#app input,#app textarea,#app select') && ativo.type !== 'file' && rota !== 'faturas' && rota !== 'clientes' && rota !== 'painel' && rota !== 'avisos') { renderAdiado = true; return; } // não atrapalhar quem digita
     const app = $('#app');
     if (rota === 'painel') telaPainel(app);
     else if (rota === 'faturas') telaFaturas(app);
     else if (rota === 'nova') telaNova(app);
+    else if (rota === 'avisos') telaAvisos(app);
     else if (rota === 'clientes') telaClientes(app);
     else if (rota === 'empresa') telaEmpresa(app);
   });
@@ -767,6 +774,7 @@ async function abrirFatura(id, dado) {
       </div>
       ${f.calculo.modelo !== 'preco_kwh' ? (() => { const gs = f.calculo.grupos || []; const g1 = gs.find(g => g.gd === 'GD I'), g2 = gs.find(g => g.gd === 'GD II'); const d1 = (g1 || gs[0] || { descontoPct: f.calculo.descontoPct || 0 }).descontoPct; void g2;
         return `<div class="linha" style="gap:6px;margin-bottom:10px;align-items:flex-end"><label class="campo" style="flex:1">Desconto desta fatura (%)<input id="iDesc" inputmode="decimal" value="${esc(numBR(d1 * 100))}"></label><button class="btn" id="bDesc">Aplicar</button></div>`; })() : ''}
+      ${f.calculo.incluirEnergisa ? `<p class="pequeno" style="margin:0 0 8px">Conta da Energisa (${fmtR(f.calculo.totalConta)}, vence ${esc(f.conta.vencimento || '—')}): <b>${f.energisaPaga ? 'paga' + (f.energisaPagaEm ? ' em ' + esc(f.energisaPagaEm) : '') : 'a pagar'}</b> <button class="btn peq" id="bEnerg">${f.energisaPaga ? 'Desfazer' : 'Já paguei'}</button></p>` : ''}
       <p class="pequeno">Situação: <span class="badge b-${statusFatura(f)}">${ROT_STATUS[statusFatura(f)]}</span>${f.pagaEm ? ' em ' + esc(f.pagaEm) : ''}</p>
       ${S.down ? '' : '<p class="pequeno">Para baixar arquivos, abra o sistema pelo link do Claude.</p>'}
       <button class="btn perigo" id="bDel" style="margin-top:14px">Excluir fatura</button>
@@ -799,6 +807,7 @@ async function abrirFatura(id, dado) {
     try { const nf = await recalcularFatura(f, { modelo: f.calculo.modelo, desconto: d1, descontoGD2: d2, incluirEnergisa: f.calculo.incluirEnergisa }); ov.remove(); toast('Desconto atualizado nesta fatura.'); abrirFatura(nf.id, nf); }
     catch (e) { bd.disabled = false; erroGravar(e); }
   };
+  const be = $('#bEnerg', ov); if (be) be.onclick = async () => { try { await marcarEnergisa(f, !f.energisaPaga); fechar(ov); } catch (e) { erroGravar(e); } };
   $('#bPaga', ov).onclick = async () => { try { await alternarPaga(f); fechar(ov); } catch (e) { erroGravar(e); } };
   $('#bDel', ov).onclick = async () => { if (await confirmar('Excluir esta fatura?', `A fatura ${f.numeroTxt} de ${f.cliente.nome} será apagada. Isso não pode ser desfeito.`, 'Excluir')) { try { await apagar('faturas', f.id); fechar(ov); toast('Fatura excluída.'); } catch (e) { erroGravar(e); } } };
 }
@@ -1304,6 +1313,93 @@ async function recalcularFatura(f, regra) {
   const novo = { ...d, calculo: V, economiaAcumulada: r2(anteriores + V.economia), pix: pi ? pixPayload({ chave: pi.chave, nome: pi.nome, cidade: pi.cidade, valor: V.valorCobrado, txid: 'FAT' + f.numeroTxt }) : '' };
   await salvar('faturas', id, novo);
   return { id, ...novo };
+}
+
+// ----- Avisos: contas da Energisa para pagar e faturas para receber -----
+let avUltimo = '';
+const cfgAv = () => Object.assign({ ativo: true, diasAntes: 3, horario: '08:00', whatsNumero: '', whatsApikey: '' }, emp().avisos || {});
+function listaAvisos(horizonte = 30) {
+  const hoje = hoje0(); const out = [];
+  for (const f of S.faturas) {
+    const ref = refTxt(f.conta.mesRef, f.conta.anoRef);
+    const add = (tipo, vencTxt, valor, desc) => {
+      const v = deBR(vencTxt); if (!v) return;
+      const dias = Math.round((v - hoje) / 864e5);
+      if (dias > horizonte) return;
+      out.push({ f, tipo, venc: v, vencTxt, dias, valor, desc, ref });
+    };
+    if (f.calculo.incluirEnergisa && !f.energisaPaga) add('energisa', f.conta.vencimento, f.calculo.totalConta, `UC ${f.cliente.uc}${f.cliente.titular ? ' · ' + f.cliente.titular : ''}`);
+    if (f.status !== 'paga') add('cliente', f.vencimento, f.calculo.valorCobrado, `Fatura Nº ${f.numeroTxt}`);
+  }
+  return out.sort((a, b) => a.venc - b.venc || (a.tipo === 'energisa' ? -1 : 1));
+}
+function contarAvisos() { const d = +cfgAv().diasAntes || 3; return listaAvisos(d).length; }
+function quandoTxt(a) { if (a.dias < 0) return `atrasada há ${-a.dias} dia${a.dias === -1 ? '' : 's'}`; if (a.dias === 0) return 'vence hoje'; if (a.dias === 1) return 'vence amanhã'; return `vence em ${a.dias} dias`; }
+
+function telaAvisos(app) {
+  const c = cfgAv(); const d = +c.diasAntes || 3;
+  const todos = listaAvisos(30);
+  const grupos = [
+    ['Atrasados', todos.filter(a => a.dias < 0), 'b-atrasada'],
+    ['Vencem hoje', todos.filter(a => a.dias === 0), 'b-atrasada'],
+    [`Próximos ${d} dias`, todos.filter(a => a.dias > 0 && a.dias <= d), 'b-aberta'],
+    ['Até 30 dias', todos.filter(a => a.dias > d), ''],
+  ];
+  const soma = arr => r2(arr.reduce((s2, a) => s2 + (a.valor || 0), 0));
+  const linha = a => `<tr>
+    <td><span class="badge ${a.tipo === 'energisa' ? 'b-energ' : 'b-receb'}">${a.tipo === 'energisa' ? 'Pagar Energisa' : 'Receber'}</span></td>
+    <td><b>${esc(a.f.cliente.nome)}</b><div class="pequeno">${esc(a.desc)} · ${esc(a.ref)}</div></td>
+    <td>${esc(a.vencTxt)}<div class="pequeno" style="${a.dias <= 0 ? 'color:var(--red);font-weight:600' : ''}">${quandoTxt(a)}</div></td>
+    <td class="n"><b>${fmtR(a.valor)}</b></td>
+    <td class="n" style="white-space:nowrap"><button class="btn peq" data-pago="${esc(a.f.id)}" data-tipo="${a.tipo}">${a.tipo === 'energisa' ? 'Já paguei' : 'Recebido'}</button> <button class="btn peq" data-verf="${esc(a.f.id)}">Ver</button></td></tr>`;
+  app.innerHTML = `
+    <div class="linha" style="margin-bottom:16px"><div><h1>Avisos</h1><p class="sub" style="margin:0">Vencimentos das contas da Energisa que você paga e das faturas que você recebe dos clientes.</p></div></div>
+    <div class="tiles">${grupos.map(([t, arr]) => `<div class="tile ${t === 'Atrasados' && arr.length ? 'alerta' : ''}"><div class="k">${t}</div><div class="v">${arr.length}</div><div class="pequeno">${fmtR(soma(arr))}${arr.length ? ` · pagar ${fmtR(soma(arr.filter(a => a.tipo === 'energisa')))} · receber ${fmtR(soma(arr.filter(a => a.tipo === 'cliente')))}` : ''}</div></div>`).join('')}</div>
+    <div class="cols" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">
+      <div>${grupos.map(([t, arr]) => arr.length ? `<div class="card" style="padding:10px 12px;margin-bottom:14px"><h2 style="margin:4px 4px 8px">${t}</h2><div class="tabela"><table><tbody>${arr.map(linha).join('')}</tbody></table></div></div>` : '').join('') || `<div class="card vazio">Nenhum vencimento nos próximos 30 dias. 👍</div>`}</div>
+      <div class="card">
+        <h2>Alertas automáticos</h2>
+        ${S.local ? `
+        <label class="chk"><input type="checkbox" id="avAtivo" ${c.ativo !== false ? 'checked' : ''}> Ativar alertas</label>
+        <div class="grade g2" style="margin-top:10px">
+          <label class="campo">Avisar com antecedência de (dias)<input id="avDias" type="number" min="1" max="15" value="${esc(d)}"></label>
+          <label class="campo">Horário da verificação diária<input id="avHora" type="time" value="${esc(c.horario)}"></label>
+        </div>
+        <p class="pequeno">Avisa ${d} dia(s) antes, no dia do vencimento e quando atrasar, uma vez só cada. A verificação roda todo dia no horário escolhido, mesmo com o programa fechado. Se o computador estiver desligado, ela roda quando ligar.</p>
+        <div class="secao">WhatsApp (opcional)</div>
+        <div class="grade g2">
+          <label class="campo">Seu número com DDD<input id="avNum" value="${esc(c.whatsNumero)}" placeholder="(83) 99999-0000"></label>
+          <label class="campo">Chave (API key) do CallMeBot<input id="avKey" value="${esc(c.whatsApikey)}" placeholder="ex.: 123456"></label>
+        </div>
+        <details style="margin-top:8px"><summary class="pequeno" style="cursor:pointer;font-weight:600">Como conseguir a chave (uma vez só)</summary>
+          <ol class="pequeno" style="padding-left:18px;margin:8px 0">
+            <li>Abra o guia oficial: <a href="https://www.callmebot.com/blog/free-api-whatsapp-messages/" target="_blank" rel="noopener">callmebot.com/blog/free-api-whatsapp-messages</a> e salve nos contatos o número do robô que aparece lá (ele muda de vez em quando).</li>
+            <li>Mande para esse contato, pelo WhatsApp, a mensagem: <b>I allow callmebot to send me messages</b></li>
+            <li>Em até 2 minutos chega a resposta com a sua <b>APIKEY</b>. Cole aqui e clique em Enviar teste.</li>
+          </ol>
+          <p class="pequeno">O CallMeBot é um serviço gratuito de terceiros, para uso pessoal. As mensagens passam por ele.</p></details>
+        <div class="linha" style="margin-top:12px"><button class="btn pri" id="avSalvar">Salvar</button><button class="btn" id="avTeste">Enviar teste</button><button class="btn" id="avAgora">Verificar agora</button></div>
+        <div id="avRes" class="pequeno" style="margin-top:10px">${avUltimo}</div>` : `<p class="pequeno">Os alertas automáticos (notificação no computador e WhatsApp) funcionam no <b>programa instalado</b>. Aqui na versão online, use esta aba para acompanhar os vencimentos.</p>`}
+      </div>
+    </div>`;
+  app.querySelectorAll('[data-verf]').forEach(b => b.onclick = () => abrirFatura(b.dataset.verf));
+  app.querySelectorAll('[data-pago]').forEach(b => b.onclick = async () => {
+    const f = S.faturas.find(x => x.id === b.dataset.pago); if (!f) return; b.disabled = true;
+    try { if (b.dataset.tipo === 'energisa') await marcarEnergisa(f, true); else await alternarPaga(f); } catch (e) { b.disabled = false; erroGravar(e); }
+  });
+  if (!S.local) return;
+  const ler = () => ({ ativo: $('#avAtivo').checked, diasAntes: Math.min(15, Math.max(1, parseInt($('#avDias').value) || 3)), horario: $('#avHora').value || '08:00', whatsNumero: $('#avNum').value.trim(), whatsApikey: $('#avKey').value.trim() });
+  const res = t => { avUltimo = t; const el = $('#avRes'); if (el) el.innerHTML = t; };
+  const salvarCfg = async () => { await salvarEmpresa({ avisos: ler() }); const r = await (await fetch('/api/avisos/agendar', { method: 'POST' })).json(); registrar('avisos', 'configuração salva; agenda: ' + r.agenda); return r; };
+  $('#avSalvar').onclick = async () => { try { const r = await salvarCfg(); res(r.agenda === 'ok' ? `✓ Salvo. Verificação diária às ${esc(r.horario)}.` : `Salvo, mas não consegui agendar a verificação diária: ${esc(r.agenda)}`); } catch (e) { erroGravar(e); } };
+  $('#avTeste').onclick = async () => { res('<span class="carregando"></span> Enviando teste…'); try { await salvarCfg(); const r = await (await fetch('/api/avisos/testar', { method: 'POST' })).json(); res(`Notificação no computador: ${r.windows === 'ok' ? '✓ enviada' : esc(r.windows)}<br>WhatsApp: ${r.whats === 'ok' ? '✓ enviado, confira no celular' : esc(r.whats)}`); registrar('avisos', `teste: windows=${r.windows} whatsapp=${r.whats}`); } catch (e) { res('Não consegui testar: ' + esc(e.message)); } };
+  $('#avAgora').onclick = async () => { res('<span class="carregando"></span> Verificando…'); try { await salvarCfg(); const r = await (await fetch('/api/avisos/executar', { method: 'POST' })).json(); res(r.novos ? `${r.novos} aviso(s) enviado(s). Computador: ${esc(r.windows)} · WhatsApp: ${esc(r.whats)}` : `Nenhum aviso novo para enviar agora (os que já foram enviados não repetem). WhatsApp: ${esc(r.whats)}`); } catch (e) { res('Não consegui verificar: ' + esc(e.message)); } };
+}
+async function marcarEnergisa(f, paga) {
+  const { id, ...d } = f;
+  await salvar('faturas', id, { ...d, energisaPaga: paga, energisaPagaEm: paga ? dataBR(new Date()) : '' });
+  registrar('avisos', `conta Energisa da fatura ${f.numeroTxt} marcada como ${paga ? 'paga' : 'a pagar'}`);
+  toast(paga ? 'Conta da Energisa marcada como paga.' : 'Conta da Energisa marcada como a pagar.');
 }
 
 // ----- Relatar problema: monta o relatório e abre o GitHub já preenchido -----

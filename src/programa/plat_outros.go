@@ -4,9 +4,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 func pastaDocumentos() string {
@@ -27,3 +29,9 @@ func mensagemErro(t string) { fmt.Fprintln(os.Stderr, t) }
 func desinstalar()          { fmt.Println("desinstalação só no Windows") }
 
 func prepararProcesso(c *exec.Cmd) {}
+
+func notificarWindows(titulo, corpo string) error {
+	log.Println("[notificação]", titulo, "|", strings.ReplaceAll(corpo, "\n", " / "))
+	return nil
+}
+func agendarTarefa(horario string) error { return nil }

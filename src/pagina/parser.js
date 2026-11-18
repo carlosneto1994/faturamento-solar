@@ -53,7 +53,10 @@ function lerContaEnergisa(paginas) {
   // Referência, vencimento e total
   m = tudo.match(new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*(\\d{4})', 'i'));
   if (m) { r.mesRef = MESES.indexOf(m[1].toLowerCase()) + 1; r.anoRef = +m[2]; }
-  const linhaRef = T.find(t => new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*\\d{4}', 'i').test(t) && /R\$/.test(t));
+  // O mês de referência certo é o da linha "Mês / Ano  vencimento  R$ total" (o texto da conta pode citar outros meses)
+  const reMes = new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*(\\d{4})', 'i');
+  const linhaRef = T.find(t => reMes.test(t) && /\d{2}\/\d{2}\/\d{4}/.test(t) && /R\$/.test(t)) || T.find(t => reMes.test(t) && /R\$/.test(t));
+  if (linhaRef) { const mm = linhaRef.match(reMes); r.mesRef = MESES.indexOf(mm[1].toLowerCase()) + 1; r.anoRef = +mm[2]; }
   if (linhaRef) {
     const d = linhaRef.match(/(\d{2}\/\d{2}\/\d{4})/); r.vencimento = d ? d[1] : '';
     const v = linhaRef.match(/R\$\s*([\d.]+,\d{2})/); r.totalConta = v ? num(v[1]) : null;
@@ -183,6 +186,13 @@ function lerContaEnergisa(paginas) {
   });
   if (!cred.length) r.avisos.push('Não encontrei energia injetada nesta conta. Confira se é a conta certa ou preencha as linhas de energia injetada à mão.');
   if (!r.uc) r.avisos.push('Não encontrei o número da UC.');
+  // Trechos da conta para diagnóstico (sem nome nem CPF): linha da referência, itens da fatura e quadro de créditos
+  const iI = T.findIndex(t => /Itens da Fatura/i.test(t)), iT = T.findIndex((t, i) => i > iI && /^\s*TOTAL:/i.test(t.trim()));
+  const sel = [];
+  if (linhaRef) sel.push(linhaRef);
+  if (iI >= 0) sel.push(...T.slice(iI, iT > iI ? iT + 1 : iI + 30));
+  sel.push(...T.filter(t => /Saldo Acumulado|classificada como|NOTA FISCAL N/i.test(t)));
+  r.diag = sel.map(t => t.replace(/\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g, '***.***.***-**').replace(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g, '**.***.***/****-**').replace(/\s{3,}/g, '  |  ').slice(0, 220));
   return r;
 }
 if (typeof module !== 'undefined') module.exports = { lerContaEnergisa, construirLinhas };

@@ -46,7 +46,13 @@ func main() {
 	pastaBase = filepath.Join(pastaDocumentos(), "Faturamento Solar")
 	_ = os.MkdirAll(filepath.Join(pastaBase, "Faturas"), 0o755)
 	_ = os.MkdirAll(filepath.Join(pastaBase, "Backups"), 0o755)
-	if f, err := os.OpenFile(filepath.Join(pastaBase, "registro.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+	arqLog := filepath.Join(pastaBase, "registro.log")
+	if st, err := os.Stat(arqLog); err == nil && st.Size() > 2<<20 { // mantém o registro com até ~1 MB
+		if b, err := os.ReadFile(arqLog); err == nil {
+			_ = os.WriteFile(arqLog, b[len(b)-(1<<20):], 0o644)
+		}
+	}
+	if f, err := os.OpenFile(arqLog, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 		log.SetOutput(f)
 	}
 	url := "http://" + porta + "/"
@@ -118,6 +124,25 @@ func main() {
 			time.Sleep(300 * time.Millisecond)
 			reiniciar(func() { db.mu.Lock(); _ = srv.Close() })
 		}()
+	})
+	mux.HandleFunc("/api/log", func(w http.ResponseWriter, r *http.Request) {
+		arq := filepath.Join(pastaBase, "registro.log")
+		switch r.Method {
+		case http.MethodPost:
+			b, _ := io.ReadAll(io.LimitReader(r.Body, 4000))
+			log.Println("[tela]", strings.ReplaceAll(string(b), "\n", " "))
+			io.WriteString(w, "ok")
+		case http.MethodGet:
+			conteudo, _ := os.ReadFile(arq)
+			linhas := strings.Split(strings.TrimSpace(string(conteudo)), "\n")
+			if len(linhas) > 200 {
+				linhas = linhas[len(linhas)-200:]
+			}
+			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			io.WriteString(w, strings.Join(linhas, "\n"))
+		default:
+			http.Error(w, "método", 405)
+		}
 	})
 	mux.HandleFunc("/api/dados", apiDados)
 	mux.HandleFunc("/api/doc/", apiDoc)

@@ -131,6 +131,7 @@ table.inj tr.tot-inj td{border-bottom:none}
 <header class="topo"><div class="in">
   <div class="marca" id="marca"><div class="sol">☀</div><span>Faturamento Solar</span></div>
   <span id="versao" class="versao" title="Versão do programa"></span>
+  <button class="btn peq" id="bRelatar" title="Enviar um relatório do problema para correção">Relatar problema</button>
   <nav id="nav">
     <a href="#painel" data-r="painel">Painel</a>
     <a href="#faturas" data-r="faturas">Faturas</a>
@@ -170,6 +171,16 @@ const hoje0 = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
 const numBR = v => (v == null || isNaN(v)) ? '' : String(r2(v)).replace('.', ',');
 function toast(msg, ms = 2600) { document.querySelectorAll('.toast').forEach(x => x.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), ms); }
 
+// ======================= Registro (log) de eventos e erros =======================
+const REG = { eventos: [], diags: [] };
+function registrar(tipo, msg) {
+  const linha = `${new Date().toLocaleString('pt-BR')} [${tipo}] ${msg}`;
+  REG.eventos.push(linha); if (REG.eventos.length > 200) REG.eventos.shift();
+  let local = false; try { local = S.local; } catch (e) {}
+  if (local) fetch('/api/log', { method: 'POST', body: `[${tipo}] ${msg}` }).catch(() => {});
+}
+window.addEventListener('error', e => registrar('ERRO', `${e.message} @ ${(e.filename || '').split('/').pop()}:${e.lineno}`));
+window.addEventListener('unhandledrejection', e => registrar('ERRO', 'promessa: ' + (e.reason && (e.reason.stack || e.reason.message) || e.reason)));
 // ======================= Dados =======================
 const S = { clientes: [], faturas: [], empresa: {}, pronto: { c: false, f: false, e: false }, db: null, down: null, nuvem: false };
 const EMPRESA_PADRAO = { nome: 'Minha Empresa Solar', cnpj: '', endereco: '', telefone: '', email: '', cor: '#12715b', pixChave: '', pixNome: '', pixCidade: '', proximoNumero: 1, diasVencimento: 10, mensagem: 'Obrigado por gerar energia limpa com a gente!', logo: '' };
@@ -398,8 +409,14 @@ async function lerPdf(arquivo) {
     const pg = await doc.getPage(p); const tc = await pg.getTextContent();
     paginas.push(tc.items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5], w: i.width })));
   }
-  return lerContaEnergisa(paginas);
+  const r = lerContaEnergisa(paginas);
+  REG.diags = REG.diags.filter(d => d.arquivo !== arquivo.name);
+  REG.diags.unshift({ arquivo: arquivo.name, quando: new Date().toLocaleString('pt-BR'), lido: `UC ${mascUC(r.uc)} · ${refTxt(r.mesRef, r.anoRef)} · total ${fmtR(r.totalConta)} · injetada ${fmtN(r.compensadoKwh)} kWh = ${fmtR(r.valorCreditos)} · ${(r.injecoes || []).length} linha(s)`, avisos: r.avisos || [], linhas: r.diag || [] });
+  if (REG.diags.length > 5) REG.diags.pop();
+  registrar('importação', `${arquivo.name}: ${REG.diags[0].lido}${r.avisos.length ? ' · avisos: ' + r.avisos.join(' / ') : ''}`);
+  return r;
 }
+const mascUC = uc => { const d = String(uc || ''); return d.length > 6 ? d.slice(0, -6).replace(/\d/g, '*') + d.slice(-6) : d; };
 
 // ======================= Desenho da fatura (canvas A4) =======================
 const A4 = { w: 1654, h: 2339 }; const MM = A4.w / 210;
@@ -806,7 +823,7 @@ function telaNova(app) {
     <label class="drop" id="drop"><input type="file" id="arq" accept="application/pdf" multiple hidden>
       <div style="font-size:30px">📄</div><b>Arraste as contas em PDF aqui</b><div class="pequeno" style="margin-top:4px">ou clique para escolher · pode enviar várias de uma vez</div></label>
     <div class="linha" style="margin-top:10px"><span class="pequeno">Conta sem PDF?</span><button class="btn peq" id="bManual">Preencher manualmente</button>${fila.length > 1 ? `<div class="esp"></div><button class="btn sun" id="bTodas">Gerar todas (${fila.length})</button>` : ''}</div>
-    ${recusadas.map((r, i) => `<div class="aviso erro linha" style="margin-top:10px"><span style="flex:1"><b>${esc(r.arquivo)}</b> não foi aceito. ${esc(r.texto)}</span>${r.faturaId ? `<button class="btn peq" data-verfat="${esc(r.faturaId)}">Ver fatura</button>` : ''}<button class="btn peq" data-okrec="${i}">OK</button></div>`).join('')}
+    ${recusadas.map((r, i) => `<div class="aviso erro linha" style="margin-top:10px"><span style="flex:1"><b>${esc(r.arquivo)}</b> não foi aceito. ${esc(r.texto)}</span>${r.faturaId ? `<button class="btn peq" data-verfat="${esc(r.faturaId)}">Ver fatura</button>` : ''}${r.item ? `<button class="btn peq" data-corrrec="${i}" title="Use se o mês foi lido errado">O mês está errado</button>` : ''}<button class="btn peq" data-relrec="${i}">Relatar</button><button class="btn peq" data-okrec="${i}">OK</button></div>`).join('')}
     <div id="fila"></div>`;
   const drop = $('#drop'), inp = $('#arq');
   inp.onchange = () => { importar([...inp.files]); inp.value = ''; };
@@ -815,7 +832,11 @@ function telaNova(app) {
   drop.addEventListener('drop', e => importar([...e.dataTransfer.files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name))));
   $('#bManual').onclick = () => { fila.unshift({ id: novoId(), arquivo: 'Preenchimento manual', conta: contaVazia(), clienteId: '', venc: vencPadrao() }); render(); };
   const bt = $('#bTodas'); if (bt) bt.onclick = gerarTodas;
+  app.querySelectorAll('[data-relrec]').forEach(b => b.onclick = () => { const r = recusadas[+b.dataset.relrec]; relatarProblema(`Conta recusada ${r.arquivo}: ${r.texto}`); });
   app.querySelectorAll('[data-okrec]').forEach(b => b.onclick = () => { recusadas.splice(+b.dataset.okrec, 1); render(); });
+  app.querySelectorAll('[data-corrrec]').forEach(b => b.onclick = () => { // traz a conta para corrigir o mês; o botão Gerar só libera quando deixar de ser duplicada
+    const r = recusadas.splice(+b.dataset.corrrec, 1)[0]; const it = r.item; const c = acharCliente(it.conta.uc); it.clienteId = c ? c.id : ''; if (!c) it.novoCli = NOVO_CLI();
+    fila.unshift(it); toast('Corrija o mês de referência no cartão. O botão Gerar libera quando a conta deixar de ser repetida.', 6000); render(); });
   app.querySelectorAll('[data-verfat]').forEach(b => b.onclick = () => abrirFatura(b.dataset.verfat));
   const box = $('#fila');
   fila.forEach(item => box.appendChild(cartaoConta(item)));
@@ -831,12 +852,13 @@ async function importar(arquivos) {
       const d = duplicidade(item);
       if (d) { // não aceita conta em duplicidade
         fila.splice(fila.indexOf(item), 1);
-        recusadas.unshift({ arquivo: a.name, texto: d.texto, faturaId: d.fatura ? d.fatura.id : '' });
+        recusadas.unshift({ arquivo: a.name, texto: d.texto + ` O PDF foi lido como ${refTxt(item.conta.mesRef, item.conta.anoRef)}.`, faturaId: d.fatura ? d.fatura.id : '', item });
+        registrar('duplicidade', `${a.name} recusado: ${d.texto}`);
         toast(`${a.name} não foi aceito: conta em duplicidade.`, 5000); render(); continue;
       }
       const c = acharCliente(item.conta.uc); item.clienteId = c ? c.id : '';
       if (!c) item.novoCli = NOVO_CLI();
-    } catch (e) { console.error(e); item.erro = e.message || String(e); }
+    } catch (e) { console.error(e); item.erro = e.message || String(e); registrar('ERRO', `ler ${a.name}: ${e.message || e}`); }
     item.carregando = false; render();
   }
 }
@@ -846,8 +868,7 @@ function existente(item) { const k = item.conta; return S.faturas.find(f => soDi
 // Duplicidade: mesma UC no mesmo mês, ou a mesma nota fiscal da Energisa, já faturada ou já na fila
 function mesmaConta(a, b) {
   if (!a || !b) return false;
-  const nfA = soDig(a.notaFiscal), nfB = soDig(b.notaFiscal);
-  if (nfA && nfB && nfA === nfB) return true;
+  // mesma UC e mesmo mês de referência
   return !!soDig(a.uc) && soDig(a.uc) === soDig(b.uc) && +a.mesRef === +b.mesRef && +a.anoRef === +b.anoRef;
 }
 function duplicidade(item) {
@@ -872,7 +893,7 @@ function cartaoConta(item) {
   const V = calcular(k, cliCalc);
   const campo = (rot, chave, tipo = 'text', extra = '') => `<label class="campo">${rot}<input data-k="${chave}" type="${tipo}" value="${esc(tipo === 'number' ? (k[chave] ?? '') : (chave === 'tarifaConsumo' ? String(k[chave] ?? '').replace('.', ',') : ['totalConta', 'valorCreditos', 'ajusteGD'].includes(chave) ? numBR(k[chave]) : (k[chave] ?? '')))}" ${extra}></label>`;
   el.innerHTML = `
-    <div class="conta-cab"><div><div class="t">${cli ? esc(cli.nome) : '<span style="color:var(--red)">Cliente ainda não identificado</span>'}</div><div class="m">${esc(refTxt(k.mesRef, k.anoRef))} · UC ${esc(k.uc || '—')} · Titular da conta: ${esc(k.nome || '—')} · ${esc(item.arquivo)}</div></div><div class="esp"></div><button class="btn peq" data-x>Descartar</button></div>
+    <div class="conta-cab"><div><div class="t">${cli ? esc(cli.nome) : '<span style="color:var(--red)">Cliente ainda não identificado</span>'}</div><div class="m">${esc(refTxt(k.mesRef, k.anoRef))} · UC ${esc(k.uc || '—')} · Titular da conta: ${esc(k.nome || '—')} · ${esc(item.arquivo)}</div></div><div class="esp"></div><button class="btn peq" data-rel>Relatar problema nesta conta</button><button class="btn peq" data-x>Descartar</button></div>
     ${(k.avisos || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('')}
     ${dupl ? `<div class="aviso erro linha"><span style="flex:1"><b>Conta em duplicidade.</b> ${esc(dupl.texto)} Não é possível gerar outra fatura para ela.</span>${dupl.fatura ? `<button class="btn peq" data-verdup>Ver fatura</button>` : ''}</div>` : ''}
     <div class="cols">
@@ -918,6 +939,7 @@ function cartaoConta(item) {
       </div>
     </div>`;
   $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); };
+  const rl = $('[data-rel]', el); if (rl) rl.onclick = () => { const d = REG.diags.findIndex(x => x.arquivo === item.arquivo); if (d > 0) REG.diags.unshift(REG.diags.splice(d, 1)[0]); relatarProblema(`Conta ${item.arquivo}: lido ${refTxt(k.mesRef, k.anoRef)}, UC ${mascUC(k.uc)}, injetada ${fmtN(k.compensadoKwh)} kWh = ${fmtR(k.valorCreditos)}, total ${fmtR(k.totalConta)}${dupl ? ' · duplicidade: ' + dupl.texto : ''}`); };
   const vd = $('[data-verdup]', el); if (vd && dupl && dupl.fatura) vd.onclick = () => abrirFatura(dupl.fatura.id);
   el.querySelectorAll('[data-k]').forEach(i => i.addEventListener('change', () => {
     const ch = i.dataset.k; let v = i.value;
@@ -1067,9 +1089,10 @@ async function gerar(item, silencioso = false) {
     await salvar('faturas', id, fat);
     if (!dup) await salvarEmpresa({ proximoNumero: numero + 1 });
     fila.splice(fila.indexOf(item), 1);
+    registrar('fatura', `Nº ${numeroTxt} ${refTxt(k.mesRef, k.anoRef)} UC ${mascUC(k.uc)} valor ${fmtR(V.valorCobrado)} (injetada ${fmtR(V.base)}, desconto ${textoDesconto(V)})`);
     if (!silencioso) { toast(`Fatura ${numeroTxt} gerada.`); render(); abrirFatura(id); }
     return true;
-  } catch (e) { erroGravar(e); return false; }
+  } catch (e) { registrar('ERRO', 'gerar fatura: ' + (e.message || e.code || e)); erroGravar(e); return false; }
 }
 async function gerarTodas() {
   const itens = fila.filter(i => !i.carregando && !i.erro && i.conta);
@@ -1283,6 +1306,55 @@ async function recalcularFatura(f, regra) {
   return { id, ...novo };
 }
 
+// ----- Relatar problema: monta o relatório e abre o GitHub já preenchido -----
+const REPO_GH = 'carlosneto1994/faturamento-solar';
+// Tira nomes de clientes/titulares e CPF/CNPJ do relatório (o repositório é público)
+function anonimizar(t) {
+  const nomes = new Set();
+  for (const c of S.clientes) { if (c.nome) nomes.add(c.nome); for (const u of ucsDe(c)) if (u.titular) nomes.add(u.titular); }
+  for (const f of S.faturas) { if (f.cliente) { if (f.cliente.nome) nomes.add(f.cliente.nome); if (f.cliente.titular) nomes.add(f.cliente.titular); } }
+  for (const x of (emp().pixTitulares || [])) { if (x.titular) nomes.add(x.titular); if (x.chave) nomes.add(x.chave); }
+  for (const i of fila) if (i.conta && i.conta.nome) nomes.add(i.conta.nome);
+  [...nomes].filter(n => n && n.length >= 3).sort((a, b) => b.length - a.length).forEach(n => { t = t.split(n).join('[nome]'); t = t.replace(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), '[nome]'); });
+  return t.replace(/\b\d{1,3}\.\d{3}\.(\d{3})\.?(\d{3})?-(\d{2})\b/g, (m, a, b, c) => '***.***.' + (b ? '***.' + b : a) + '-' + c)
+    .replace(/\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g, '**.***.***/****-**')
+    .replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '[e-mail]');
+}
+// Link do GitHub com o relatório; encurta o relatório até caber no endereço
+function linkIssue(titulo, corpo) {
+  let t = corpo; const base = `https://github.com/${REPO_GH}/issues/new?title=${encodeURIComponent(titulo)}&body=`;
+  while (base.length + encodeURIComponent(t).length > 7000 && t.length > 300) { const ls = t.split('\n'); let i = -1; for (let k = ls.length - 1; k > 12; k--) if (ls[k] !== '```' && !ls[k].startsWith('#') && !ls[k].startsWith('**')) { i = k; break; } if (i < 0) break; ls.splice(i, 1); t = ls.join('\n'); } // corta do fim (registros mais velhos primeiro)
+  if (base.length + encodeURIComponent(t).length > 7000) t = t.slice(0, 2500) + '\n…(cortado)';
+  return { url: base + encodeURIComponent(t), texto: t };
+}
+async function relatarProblema(contexto) {
+  let logPrograma = '';
+  if (S.local) { try { logPrograma = await (await fetch('/api/log')).text(); } catch (e) {} }
+  const montar = (descr, comPdf) => {
+    const p = [];
+    p.push('## O que aconteceu', descr || '(descreva aqui)', '');
+    p.push('## Ambiente', `- Versão: ${S.local ? (S.atualizacao && S.atualizacao.versao) || '?' : 'online'}`, `- Atualização: ${S.atualizacao ? S.atualizacao.status + (S.atualizacao.erro ? ' (' + S.atualizacao.erro + ')' : '') : '-'}`, `- Navegador: ${navigator.userAgent.slice(0, 120)}`, `- Clientes: ${S.clientes.length} · Faturas: ${S.faturas.length}`, '');
+    if (contexto) p.push('## Tela', contexto, '');
+    if (comPdf && REG.diags.length) { p.push('## Contas lidas (trechos sem nome e sem CPF)'); for (const d of REG.diags.slice(0, 2)) { p.push(`**${d.arquivo}** (${d.quando}): ${d.lido}`); if (d.avisos.length) p.push('Avisos: ' + d.avisos.join(' / ')); p.push('```', ...d.linhas.slice(0, 40), '```'); } p.push(''); }
+    const ev = REG.eventos.slice(-25); if (ev.length) p.push('## Registro da tela', '```', ...ev, '```', '');
+    if (logPrograma) p.push('## Registro do programa', '```', ...logPrograma.trim().split('\n').slice(-25), '```');
+    return anonimizar(p.join('\n'));
+  };
+  const ov = modal(`<div class="cab"><b>Relatar problema</b><div class="esp"></div><button class="btn" data-fechar>Fechar</button></div><div class="corpo">
+    <label class="campo">O que aconteceu? (ex.: "importei a conta de setembro e ele disse que já foi faturada")<textarea id="rDesc" rows="3"></textarea></label>
+    <label class="chk" style="margin:10px 0"><input type="checkbox" id="rPdf" checked> Incluir trechos das últimas contas importadas (itens da fatura, sem nome e sem CPF)</label>
+    <label class="campo">Relatório que será enviado (confira antes)<textarea id="rPrev" rows="10" readonly style="font-family:monospace;font-size:11.5px"></textarea></label>
+    <p class="pequeno">O relatório vai para a área de problemas (Issues) do repositório ${REPO_GH}, que é <b>público</b>. Ele não leva nome de cliente, CPF nem o PDF. O GitHub abre já preenchido: é só clicar em <b>Submit new issue</b> (ou "Criar").</p>
+    <div class="linha"><div class="esp"></div><button class="btn" id="rCopiar">Copiar relatório</button><a class="btn pri" id="rEnviar" target="_blank" rel="noopener">Enviar pelo GitHub</a></div></div>`, 'peq');
+  ov.querySelector('.modal').style.maxWidth = '720px';
+  const atual = () => { const titulo = anonimizar('Problema: ' + ($('#rDesc', ov).value.trim().slice(0, 70) || 'relato do programa'));
+    const l = linkIssue(titulo, montar($('#rDesc', ov).value.trim(), $('#rPdf', ov).checked));
+    $('#rPrev', ov).value = l.texto; $('#rEnviar', ov).href = l.url; };
+  $('#rDesc', ov).addEventListener('input', atual); $('#rPdf', ov).addEventListener('change', atual); atual();
+  $('#rEnviar', ov).addEventListener('click', () => { registrar('relato', 'relatório aberto no GitHub'); });
+  $('#rCopiar', ov).onclick = async () => { try { await navigator.clipboard.writeText($('#rPrev', ov).value); toast('Relatório copiado.'); } catch (e) { $('#rPrev', ov).select(); } };
+}
+
 // ----- Minha empresa -----
 let empresaPendente = false;
 function telaEmpresa(app) {
@@ -1381,6 +1453,7 @@ async function faturaExemplo(E) {
 
 // ======================= Início =======================
 aplicarMarca(); lerRota(); iniciarDados();
+$('#bRelatar').onclick = () => relatarProblema('Tela: ' + rota);
 </script>
 </body>
 </html>

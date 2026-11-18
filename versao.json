@@ -1,10 +1,10 @@
 {
-  "versao": "1.1.5",
-  "notas": "Contas em duplicidade são recusadas com aviso.",
+  "versao": "1.1.6",
+  "notas": "Mês de referência lido pela linha do vencimento; botão Relatar problema com registro de erros.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.5/FaturamentoSolar.exe",
-      "sha256": "632b7c0cae22ae674d1f5a79eaf146bc32cc690fcd72db448db624aef3df8c19"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.6/FaturamentoSolar.exe",
+      "sha256": "1a5c45561cbf3eff955a1035e20d7d68ccc95cc115f544295d764b8fba2a7f67"
     }
   }
 }

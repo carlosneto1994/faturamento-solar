@@ -196,6 +196,8 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(res)
 	})
+	mux.HandleFunc("/api/conta", apiContaGravar)
+	mux.HandleFunc("/api/conta/", apiContaLer)
 	mux.HandleFunc("/api/dados", apiDados)
 	mux.HandleFunc("/api/doc/", apiDoc)
 	mux.HandleFunc("/api/arquivo", apiArquivo)
@@ -414,6 +416,9 @@ func apiDoc(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case http.MethodDelete:
+		if col == "faturas" {
+			_ = os.Remove(filepath.Join(pastaBase, "Contas", id+".pdf"))
+		}
 		anterior, existia := db.Dados[col][id]
 		delete(db.Dados[col], id)
 		if err := db.gravarArquivo(); err != nil {
@@ -462,4 +467,54 @@ func apiArquivo(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"caminho": destino})
+}
+
+// PDF original da conta da Energisa, guardado junto com a fatura (Documentos\Faturamento Solar\Contas\<fatura>.pdf)
+func apiContaGravar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "método", 405)
+		return
+	}
+	id := r.URL.Query().Get("id")
+	if !idValido.MatchString(id) {
+		http.Error(w, "fatura inválida", 400)
+		return
+	}
+	conteudo, err := io.ReadAll(io.LimitReader(r.Body, 30<<20))
+	if err != nil || len(conteudo) < 5 || string(conteudo[:4]) != "%PDF" {
+		http.Error(w, "o arquivo não é um PDF", 400)
+		return
+	}
+	dir := filepath.Join(pastaBase, "Contas")
+	_ = os.MkdirAll(dir, 0o755)
+	if err := os.WriteFile(filepath.Join(dir, id+".pdf"), conteudo, 0o644); err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	log.Printf("conta anexada à fatura %s (%d KB)", id, len(conteudo)/1024)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"ref": id + ".pdf", "tamanho": len(conteudo)})
+}
+
+func apiContaLer(w http.ResponseWriter, r *http.Request) {
+	nome := strings.TrimPrefix(r.URL.Path, "/api/conta/")
+	id := strings.TrimSuffix(nome, ".pdf")
+	if r.Method != http.MethodGet || !idValido.MatchString(id) || !strings.HasSuffix(nome, ".pdf") {
+		http.Error(w, "não encontrado", 404)
+		return
+	}
+	arq := filepath.Join(pastaBase, "Contas", id+".pdf")
+	f, err := os.Open(arq)
+	if err != nil {
+		http.Error(w, "PDF da conta não encontrado", 404)
+		return
+	}
+	defer f.Close()
+	w.Header().Set("Content-Type", "application/pdf")
+	if dl := r.URL.Query().Get("baixar"); dl != "" {
+		w.Header().Set("Content-Disposition", `attachment; filename="`+nomeArquivo.ReplaceAllString(dl, "_")+`"`)
+	} else {
+		w.Header().Set("Content-Disposition", `inline; filename="conta-`+id+`.pdf"`)
+	}
+	io.Copy(w, f)
 }

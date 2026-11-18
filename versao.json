@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.1",
-  "notas": "Mês de referência e vencimento lidos pelo quadro do total a pagar.",
+  "versao": "1.2.2",
+  "notas": "PDF da conta da Energisa fica anexado à fatura.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.1/FaturamentoSolar.exe",
-      "sha256": "cfc0c86f40e25107893c017069df714d71b27f18ade41e0d49ed1dc5563f26a1"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.2/FaturamentoSolar.exe",
+      "sha256": "20275ab24303a57c739a067f22d0c777235959c54c35883b905e0f20faa5ace8"
     }
   }
 }

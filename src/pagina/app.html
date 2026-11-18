@@ -256,6 +256,7 @@ async function iniciarDados() {
   let db = null;
   try { db = window.claude ? await Promise.race([claude.use('db'), new Promise(r => setTimeout(() => r(null), 10000))]) : null; } catch (e) { db = null; }
   try { S.down = window.claude ? await claude.use('downloads') : null; } catch (e) { S.down = null; }
+  try { S.assets = window.claude ? await Promise.race([claude.use('assets'), new Promise(r => setTimeout(() => r(null), 10000))]) : null; } catch (e) { S.assets = null; }
   if (!db) {
     const m = memoria.ler();
     S.clientes = m.clientes || []; S.faturas = m.faturas || []; S.empresa = m.empresa || {};
@@ -719,7 +720,7 @@ function telaFaturas(app) {
     <div class="card" style="padding:6px 8px"><div class="tabela"><table>
       <thead><tr><th>Nº</th><th>Cliente</th><th>UC</th><th>Referência</th><th class="n">kWh</th><th class="n">Valor</th><th>Vencimento</th><th>Situação</th><th></th></tr></thead>
       <tbody>${lista.map(f => { const st = statusFatura(f); return `<tr class="click" data-id="${esc(f.id)}">
-        <td>${esc(f.numeroTxt)}</td><td><b>${esc(f.cliente.nome)}</b></td><td class="pequeno">${esc(f.cliente.uc)}</td><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}</td>
+        <td>${esc(f.numeroTxt)}${f.contaPdf ? ' <span title="PDF da conta anexado">📎</span>' : ''}</td><td><b>${esc(f.cliente.nome)}</b></td><td class="pequeno">${esc(f.cliente.uc)}</td><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}</td>
         <td class="n">${fmtN(f.calculo.kwh)}</td><td class="n"><b>${fmtR(f.calculo.valorCobrado)}</b></td><td>${esc(f.vencimento)}</td>
         <td><span class="badge b-${st}">${ROT_STATUS[st]}</span></td>
         <td class="n"><button class="btn peq" data-pagar="${esc(f.id)}">${f.status === 'paga' ? 'Reabrir' : 'Marcar paga'}</button></td></tr>`; }).join('') || `<tr><td colspan="9" class="vazio">Nenhuma fatura com esses filtros.</td></tr>`}</tbody>
@@ -754,6 +755,30 @@ async function baixar(nome, dados) {
   }
 }
 
+// ----- PDF original da conta da Energisa, anexado à fatura -----
+async function anexarConta(faturaId, blob, nome) {
+  try {
+    if (S.local) {
+      const r = await fetch('/api/conta?id=' + encodeURIComponent(faturaId), { method: 'POST', body: blob, headers: { 'Content-Type': 'application/pdf' } });
+      if (!r.ok) throw new Error(await r.text());
+      const j = await r.json(); registrar('anexo', `conta ${nome} anexada à fatura ${faturaId}`);
+      return { arquivo: nome, ref: j.ref, tamanho: j.tamanho, em: dataBR(new Date()) };
+    }
+    if (S.assets) {
+      const up = await S.assets.upload(blob, { type: 'application/pdf' });
+      return { arquivo: nome, assetId: up.id, tamanho: up.sizeBytes, em: dataBR(new Date()) };
+    }
+    return null;
+  } catch (e) { registrar('ERRO', 'anexar conta: ' + (e.message || e.code || e)); toast('A fatura foi gerada, mas não consegui guardar o PDF da conta: ' + (e.message || e.code || ''), 6000); return null; }
+}
+function linkConta(f, baixar) {
+  const c = f && f.contaPdf; if (!c) return '';
+  if (c.ref) return '/api/conta/' + encodeURIComponent(c.ref) + (baixar ? '?baixar=' + encodeURIComponent(c.arquivo || 'conta.pdf') : '');
+  if (c.assetId) return '/_blob/' + c.assetId;
+  return '';
+}
+const podeAnexar = () => !!(S.local || S.assets);
+
 // ----- Visualizar fatura -----
 async function abrirFatura(id, dado) {
   const f = dado || S.faturas.find(x => x.id === id); if (!f) return;
@@ -774,6 +799,9 @@ async function abrirFatura(id, dado) {
       </div>
       ${f.calculo.modelo !== 'preco_kwh' ? (() => { const gs = f.calculo.grupos || []; const g1 = gs.find(g => g.gd === 'GD I'), g2 = gs.find(g => g.gd === 'GD II'); const d1 = (g1 || gs[0] || { descontoPct: f.calculo.descontoPct || 0 }).descontoPct; void g2;
         return `<div class="linha" style="gap:6px;margin-bottom:10px;align-items:flex-end"><label class="campo" style="flex:1">Desconto desta fatura (%)<input id="iDesc" inputmode="decimal" value="${esc(numBR(d1 * 100))}"></label><button class="btn" id="bDesc">Aplicar</button></div>`; })() : ''}
+      <div class="calc" style="margin:0 0 10px;padding:10px 12px"><div class="pequeno" style="font-weight:700;margin-bottom:6px">📎 Conta da Energisa (PDF)</div>
+        ${f.contaPdf ? `<div class="pequeno" style="margin-bottom:6px;word-break:break-all">${esc(f.contaPdf.arquivo || 'conta.pdf')}${f.contaPdf.em ? ' · anexada em ' + esc(f.contaPdf.em) : ''}</div><a class="btn peq" href="${esc(linkConta(f))}" target="_blank" rel="noopener">Abrir conta</a>${S.local ? ` <a class="btn peq" href="${esc(linkConta(f, true))}" target="_blank" rel="noopener">Salvar cópia</a>` : ''}` : '<div class="pequeno" style="margin-bottom:6px">Nenhum PDF anexado.</div>'}
+        ${podeAnexar() ? ` <label class="btn peq">${f.contaPdf ? 'Trocar PDF' : 'Anexar PDF'}<input type="file" id="iAnexo" accept="application/pdf" hidden></label>` : ''}</div>
       ${f.calculo.incluirEnergisa ? `<p class="pequeno" style="margin:0 0 8px">Conta da Energisa (${fmtR(f.calculo.totalConta)}, vence ${esc(f.conta.vencimento || '—')}): <b>${f.energisaPaga ? 'paga' + (f.energisaPagaEm ? ' em ' + esc(f.energisaPagaEm) : '') : 'a pagar'}</b> <button class="btn peq" id="bEnerg">${f.energisaPaga ? 'Desfazer' : 'Já paguei'}</button></p>` : ''}
       <p class="pequeno">Situação: <span class="badge b-${statusFatura(f)}">${ROT_STATUS[statusFatura(f)]}</span>${f.pagaEm ? ' em ' + esc(f.pagaEm) : ''}</p>
       ${S.down ? '' : '<p class="pequeno">Para baixar arquivos, abra o sistema pelo link do Claude.</p>'}
@@ -806,6 +834,11 @@ async function abrirFatura(id, dado) {
     bd.disabled = true;
     try { const nf = await recalcularFatura(f, { modelo: f.calculo.modelo, desconto: d1, descontoGD2: d2, incluirEnergisa: f.calculo.incluirEnergisa }); ov.remove(); toast('Desconto atualizado nesta fatura.'); abrirFatura(nf.id, nf); }
     catch (e) { bd.disabled = false; erroGravar(e); }
+  };
+  const ia = $('#iAnexo', ov); if (ia) ia.onchange = async () => {
+    const arq = ia.files[0]; if (!arq) return;
+    const anexo = await anexarConta(f.id, arq, arq.name); if (!anexo) return;
+    const { id, ...d } = f; try { await salvar('faturas', id, { ...d, contaPdf: anexo }); toast('PDF da conta anexado.'); ov.remove(); abrirFatura(id, { id, ...d, contaPdf: anexo }); } catch (e) { erroGravar(e); }
   };
   const be = $('#bEnerg', ov); if (be) be.onclick = async () => { try { await marcarEnergisa(f, !f.energisaPaga); fechar(ov); } catch (e) { erroGravar(e); } };
   $('#bPaga', ov).onclick = async () => { try { await alternarPaga(f); fechar(ov); } catch (e) { erroGravar(e); } };
@@ -854,7 +887,7 @@ function telaNova(app) {
 async function importar(arquivos) {
   if (!arquivos.length) return;
   for (const a of arquivos) {
-    const item = { id: novoId(), arquivo: a.name, carregando: true, venc: vencPadrao() };
+    const item = { id: novoId(), arquivo: a.name, carregando: true, venc: vencPadrao(), blob: a };
     fila.unshift(item); render();
     try {
       item.conta = await lerPdf(a); sincronizarInjecoes(item.conta);
@@ -1095,6 +1128,7 @@ async function gerar(item, silencioso = false) {
       empresa: empresaSnap
     };
     const id = dup ? dup.id : `${soDig(k.uc)}-${rk}`;
+    if (item.blob) { const anexo = await anexarConta(id, item.blob, item.arquivo); if (anexo) fat.contaPdf = anexo; }
     await salvar('faturas', id, fat);
     if (!dup) await salvarEmpresa({ proximoNumero: numero + 1 });
     fila.splice(fila.indexOf(item), 1);
@@ -1292,15 +1326,15 @@ function abrirCliente(id) {
       ${serie.length > 1 ? `<div class="card" style="box-shadow:none"><h2>Ganho por mês (R$)</h2>${graficoColunas(serie.map(x => ({ rotulo: MES_AB[x.mes - 1] + '/' + String(x.ano).slice(2), valores: [x.pago, x.aberto], dica: `<b>${refTxt(x.mes, x.ano)}</b><br><i style="background:${COR_A}"></i>Recebido: ${fmtR(x.pago)}<br><i style="background:${COR_B}"></i>A receber: ${fmtR(x.aberto)}` })), [{ nome: 'Recebido', cor: COR_A }, { nome: 'A receber', cor: COR_B }], fmtK, 1000)}</div>` : ''}
       <h2 style="margin-top:16px">Histórico mês a mês</h2>
       <div class="tabela"><table>
-        <thead><tr><th>Referência</th><th>UC</th><th class="n">kWh</th><th class="n">Desconto</th><th class="n">Seu ganho</th><th class="n">Conta Energisa</th><th class="n">Total cobrado</th><th class="n">Economia</th><th>Situação</th></tr></thead>
-        <tbody>${fats.map(f => { const st = statusFatura(f); return `<tr class="click" data-fat="${esc(f.id)}"><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}<div class="pequeno">Nº ${esc(f.numeroTxt)}</div></td><td class="pequeno">${esc(f.cliente.uc)}</td><td class="n">${fmtN(f.calculo.kwh)}</td>
+        <thead><tr><th>Referência</th><th>UC</th><th>Conta</th><th class="n">kWh</th><th class="n">Desconto</th><th class="n">Seu ganho</th><th class="n">Conta Energisa</th><th class="n">Total cobrado</th><th class="n">Economia</th><th>Situação</th></tr></thead>
+        <tbody>${fats.map(f => { const st = statusFatura(f); return `<tr class="click" data-fat="${esc(f.id)}"><td>${esc(refTxt(f.conta.mesRef, f.conta.anoRef))}<div class="pequeno">Nº ${esc(f.numeroTxt)}</div></td><td class="pequeno">${esc(f.cliente.uc)}</td><td>${f.contaPdf ? `<a href="${esc(linkConta(f))}" target="_blank" rel="noopener" data-noclick title="Abrir PDF da conta">📎 PDF</a>` : '<span class="pequeno">—</span>'}</td><td class="n">${fmtN(f.calculo.kwh)}</td>
           <td class="n">${textoDesconto(f.calculo)}</td><td class="n"><b>${fmtR(ganho(f))}</b></td><td class="n">${f.calculo.incluirEnergisa ? fmtR(f.calculo.totalConta) : '—'}</td><td class="n">${fmtR(f.calculo.valorCobrado)}</td><td class="n">${fmtR(f.calculo.economia)}</td><td><span class="badge b-${st}">${ROT_STATUS[st]}</span></td></tr>`; }).join('') || '<tr><td colspan="9" class="vazio">Nenhuma fatura ainda.</td></tr>'}
-        ${fats.length ? `<tr style="font-weight:700"><td colspan="2">Total</td><td class="n">${fmtN(fats.reduce((s, f) => s + (f.calculo.kwh || 0), 0))}</td><td></td><td class="n">${fmtR(gT)}</td><td></td><td class="n">${fmtR(soma(fats, f => f.calculo.valorCobrado))}</td><td class="n">${fmtR(soma(fats, f => f.calculo.economia))}</td><td></td></tr>` : ''}</tbody>
+        ${fats.length ? `<tr style="font-weight:700"><td colspan="3">Total</td><td class="n">${fmtN(fats.reduce((s, f) => s + (f.calculo.kwh || 0), 0))}</td><td></td><td class="n">${fmtR(gT)}</td><td></td><td class="n">${fmtR(soma(fats, f => f.calculo.valorCobrado))}</td><td class="n">${fmtR(soma(fats, f => f.calculo.economia))}</td><td></td></tr>` : ''}</tbody>
       </table></div>
     </div>`);
   ov.querySelector('.modal').style.maxWidth = '1080px';
   ligarDicas(ov);
-  ov.querySelectorAll('[data-fat]').forEach(tr => tr.onclick = () => abrirFatura(tr.dataset.fat));
+  ov.querySelectorAll('[data-fat]').forEach(tr => tr.onclick = e => { if (e.target.closest('[data-noclick]')) return; abrirFatura(tr.dataset.fat); });
   const be = $('#bEditC', ov); if (be) be.onclick = () => { ov.remove(); editarCliente(c); };
 }
 

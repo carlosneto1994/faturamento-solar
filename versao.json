@@ -1,10 +1,10 @@
 {
-  "versao": "1.1.1",
-  "notas": "Conferência só da energia injetada; removido o aviso da soma dos itens da conta.",
+  "versao": "1.1.2",
+  "notas": "Contas sem energia injetada: a fatura sai só com o valor da conta da Energisa.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.1/FaturamentoSolar.exe",
-      "sha256": "44ada063da9d3ccba171699eeb137603d7e622a8bc52d540cefab2ce60162bde"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.2/FaturamentoSolar.exe",
+      "sha256": "641f4deeab287c92146f8a4d84c6c3c5365336a39ec7f81975bf38d45a19b639"
     }
   }
 }

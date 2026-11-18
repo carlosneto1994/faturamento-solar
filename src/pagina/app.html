@@ -469,7 +469,7 @@ async function desenharFatura(fat) {
     const wEco = largura(fmtR(V.economia), 15, 800);
     txt(`(${fmtP(V.economiaPct)} a menos do que pagaria sem a usina)`, X0 + 23 + wEco, y + 15.5, { pt: 7.8, cor: '#6b4a00' });
   } else {
-    txt('Energia limpa gerada pela nossa usina', X0 + 21, y + 12.5, { pt: 11, w: 700, cor: '#3d2a00' });
+    txt(V.base > 0 ? 'Energia limpa gerada pela nossa usina' : 'Neste mês não houve energia injetada pela usina nesta conta', X0 + 21, y + 12.5, { pt: 11, w: 700, cor: '#3d2a00' });
   }
   if (fat.economiaAcumulada > 0) {
     txt('Economia acumulada', X1 - 5, y + 7.5, { pt: 7, w: 600, cor: '#6b4a00', al: 'right' });
@@ -516,6 +516,8 @@ async function desenharFatura(fat) {
   if (V.modelo === 'preco_kwh') {
     linhas.push(['Energia injetada compensada (valor na conta)', fmtN(V.kwh) + ' kWh', fmtR(V.creditos), '#5d6b65']);
     linhas.push([`Energia da usina a ${fmtR(V.precoKwh)}/kWh`, fmtN(V.kwh) + ' kWh', fmtR(V.valorUsina), '#15211c', 600]);
+  } else if (!(V.base > 0)) {
+    linhas.push(['Sem energia injetada neste mês (sem desconto)', '0 kWh', fmtR(0), '#5d6b65']);
   } else {
     const gs = V.grupos || [];
     if (gs.length > 1) {
@@ -755,7 +757,7 @@ async function abrirFatura(id, dado) {
     const E = f.empresa || emp(); const nome1 = (f.cliente.nome || '').split(' ')[0];
     const nomeC = nome1 ? nome1.charAt(0) + nome1.slice(1).toLowerCase() : '';
     const msg = `Olá${nomeC ? ', ' + nomeC : ''}! Segue sua fatura de energia solar de ${refTxt(f.conta.mesRef, f.conta.anoRef)}.\n\n` +
-      `Energia compensada: ${fmtN(f.calculo.kwh)} kWh\nValor: ${fmtR(f.calculo.valorCobrado)}\nVencimento: ${f.vencimento}\n` +
+      (f.calculo.kwh > 0 ? `Energia compensada: ${fmtN(f.calculo.kwh)} kWh\n` : 'Neste mês não houve energia injetada.\n') + `Valor: ${fmtR(f.calculo.valorCobrado)}\nVencimento: ${f.vencimento}\n` +
       (f.calculo.economia > 0 ? `Sua economia este mês: ${fmtR(f.calculo.economia)}\n` : '') +
       (f.pix ? `\nPix copia e cola:\n${f.pix}\n` : '') + `\n${E.nome}`;
     try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada. É só colar no WhatsApp junto com a imagem.'); } catch (e) { mostrarTexto('Mensagem para o cliente', msg); }
@@ -912,12 +914,18 @@ function cartaoConta(item) {
 
 function avisoNaoCompensado(k, regra) {
   const falta = Math.round((+k.consumoKwh || 0) - (+k.compensadoKwh || 0));
-  if (!(falta > 0) || !(+k.consumoKwh)) return '';
+  if (!(falta > 0) || !(+k.consumoKwh) || !(+k.compensadoKwh)) return '';
   const minimo = { MONOFASICO: 30, BIFASICO: 50, TRIFASICO: 100 }[semAcento(k.ligacao || '').toUpperCase()];
   const ehMinimo = minimo && falta === minimo;
   return `<div class="aviso" style="margin-top:8px">${fmtN(falta)} kWh do consumo não foram compensados pela usina${ehMinimo ? ` (é o consumo mínimo da ligação ${esc((k.ligacao || '').toLowerCase())}, que a Energisa sempre cobra)` : ''}. Esse valor já está na conta da Energisa${regra && regra.incluirEnergisa ? ', que entra na sua fatura' : ', paga direto pelo cliente'}. O desconto vale só sobre a energia injetada.</div>`;
 }
 function calcHtml(V) {
+  if (V.modelo !== 'preco_kwh' && !(V.base > 0)) return `        <div class="calc">
+          <div class="l"><span>Sem energia injetada neste mês</span><span>${fmtR(0)}</span></div>
+          ${V.incluirEnergisa ? `<div class="l"><span>Conta da distribuidora</span><span>${fmtR(V.totalConta)}</span></div>` : ''}
+          <div class="l tot"><span>Valor da fatura</span><span>${fmtR(V.valorCobrado)}</span></div>
+        </div>
+        <div class="aviso" style="margin-top:10px">${V.incluirEnergisa ? 'A fatura vai sair só com o valor da conta da Energisa, sem desconto.' : 'Este cliente paga a Energisa direto: sem energia injetada, não há o que cobrar neste mês.'}</div>`;
   return `        <div class="calc">
           ${V.modelo === 'preco_kwh' ? `<div class="l"><span>${fmtN(V.kwh)} kWh × ${fmtR(V.precoKwh)}</span><span>${fmtR(V.valorUsina)}</span></div>` : `
           ${(V.grupos || []).map(g => `<div class="l"><span>${V.modelo === 'percentual_tarifa' ? 'Tarifa cheia' : 'Energia injetada'}${V.grupos.length > 1 || g.gd === 'GD II' ? ' ' + g.gd : ''} (${fmtN(g.kwh)} kWh)</span><span>${fmtR(g.base)}</span></div>`).join('')}
@@ -976,7 +984,7 @@ function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
 async function gerar(item, silencioso = false) {
   const k = item.conta;
   if (!k.uc) { toast('Informe a UC.'); return false; }
-  if (!(+k.compensadoKwh > 0)) { toast('Informe a energia compensada (kWh).'); return false; }
+  if (!(+k.valorCreditos > 0) && !(+k.totalConta > 0)) { toast('Sem energia injetada e sem valor da conta: não há o que cobrar.'); return false; }
   if (!deBR(item.venc)) { toast('Informe o vencimento no formato dd/mm/aaaa.'); return false; }
   try {
     let cli = clienteDoItem(item);
@@ -1000,6 +1008,7 @@ async function gerar(item, silencioso = false) {
     const numero = dup ? dup.numero : (+E.proximoNumero || 1);
     const numeroTxt = String(numero).padStart(6, '0');
     const V = calcular(k, cli);
+    if (!(V.valorCobrado > 0)) { toast('Esta conta não tem energia injetada e a conta da Energisa não está incluída na fatura deste cliente: o valor ficaria zero.', 6000); return false; }
     const rk = refKey(k.mesRef, k.anoRef);
     const anteriores = S.faturas.filter(f => f.clienteId === cli.id && f.refKey < rk).reduce((s, f) => s + (f.calculo.economia || 0), 0);
     const conta = { distribuidora: k.distribuidora || '', uc: k.uc, mesRef: +k.mesRef, anoRef: +k.anoRef, vencimento: k.vencimento || '', totalConta: +k.totalConta || 0, consumoKwh: +k.consumoKwh || 0, compensadoKwh: +k.compensadoKwh || 0, valorCreditos: +k.valorCreditos || 0, ajusteGD: +k.ajusteGD || 0, creditosPorTipo: k.creditosPorTipo || [], injecoes: (k.injecoes || []).slice(0, 30), titular, titularDoc: k.documento || '', ligacao: k.ligacao || '', enderecoUc: k.endereco || '', tarifaConsumo: +k.tarifaConsumo || 0, tarifaCompensada: k.tarifaCompensada || null, leituraAnterior: k.leituraAnterior || '', leituraAtual: k.leituraAtual || '', dias: k.dias || null, notaFiscal: k.notaFiscal || '', saldoKwh: k.saldoKwh ?? null, historico: (k.historico || []).slice(-13), itens: (k.itens || []).slice(0, 20) };

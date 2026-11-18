@@ -105,15 +105,36 @@ function lerContaEnergisa(paginas) {
       let t = T[i].trim();
       if (!t || /^(PIS|COFINS|ICMS|Quant\.?|Consumo kWh|N[ºo] DIAS|FAT|CONSUMO FATURADO)\b/i.test(t)) continue;
       if (/^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\/\d{2}/.test(t)) continue;
+      // junta números quebrados pelo PDF ("1.312 ,00" -> "1.312,00")
+      t = t.replace(/(\d)\s+([,.])\s*(\d)/g, '$1$2$3').replace(/(\d)\s+-(?=\s|$)/g, '$1-');
       let it;
       const mk = t.match(/^(.+?)\s+(KWH|kWh)\s+(-?[\d.]+,\d+-?)\s+(-?[\d.]+,\d+-?)\s+(-?[\d.]+,\d+-?)/);
       if (mk) it = { descricao: mk[1].trim(), unidade: 'KWH', quantidade: Math.abs(num(mk[3])), precoUnit: Math.abs(num(mk[4])), valor: num(mk[5]) };
       else {
         const mn = NUM_RE.exec(t); NUM_RE.lastIndex = 0;
         if (!mn || mn.index === 0) continue;
-        const desc = t.slice(0, mn.index).trim();
+        const desc = t.slice(0, mn.index).replace(/\s+(KWH|kWh)\s*$/, '').trim();
         if (!/[A-Za-zÀ-ú]/.test(desc)) continue;
         it = { descricao: desc, unidade: '', valor: num(mn[0]) };
+        // Linhas de energia (injetada, ajuste GD, consumo) em outro formato: acha kWh, tarifa e valor pelos próprios números
+        if (/injetad|compensad|ajuste\s+gd|trf\.?\s*reduzida|^consumo/i.test(desc)) {
+          const resto = t.slice(mn.index);
+          const ns = (resto.match(NUM_RE) || []).map(x => ({ v: num(x), dec: (x.split(',')[1] || '').replace('-', '').length }));
+          const iT = ns.findIndex((n, i) => i > 0 && Math.abs(n.v) < 10 && n.dec >= 4); // tarifa: ex. 0,850720
+          if (iT > 0) {
+            const q = Math.abs(ns[iT - 1].v), tar = Math.abs(ns[iT].v), alvo = q * tar;
+            // valor: o número depois da tarifa mais próximo de kWh × tarifa
+            const cands = ns.slice(iT + 1, iT + 4).map(n => n.v);
+            let val = cands.length ? cands.reduce((m, v) => Math.abs(Math.abs(v) - alvo) < Math.abs(Math.abs(m) - alvo) ? v : m, cands[0]) : null;
+            if (val == null || Math.abs(Math.abs(val) - alvo) > Math.max(1, alvo * 0.02)) val = -Math.round(alvo * 100) / 100;
+            if (/injetad|compensad/i.test(desc) && val > 0) val = -val;
+            it = { descricao: desc, unidade: 'KWH', quantidade: q, precoUnit: tar, valor: val };
+          } else if (/injetad|compensad/i.test(desc) && ns.length) {
+            // sem tarifa identificável: não arrisca usar kWh como R$; o aviso de conferência vai aparecer
+            const neg = ns.find(n => n.v < 0);
+            it = { descricao: desc, unidade: 'KWH', quantidade: Math.abs(ns[0].v), precoUnit: 0, valor: neg ? neg.v : 0 };
+          }
+        }
       }
       const desc = it.descricao;
       if (/ajuste\s+gd|trf\.?\s*reduzida|fio\s*b/i.test(desc)) it.tipo = 'ajuste_gd';

@@ -806,6 +806,7 @@ function telaNova(app) {
     <label class="drop" id="drop"><input type="file" id="arq" accept="application/pdf" multiple hidden>
       <div style="font-size:30px">📄</div><b>Arraste as contas em PDF aqui</b><div class="pequeno" style="margin-top:4px">ou clique para escolher · pode enviar várias de uma vez</div></label>
     <div class="linha" style="margin-top:10px"><span class="pequeno">Conta sem PDF?</span><button class="btn peq" id="bManual">Preencher manualmente</button>${fila.length > 1 ? `<div class="esp"></div><button class="btn sun" id="bTodas">Gerar todas (${fila.length})</button>` : ''}</div>
+    ${recusadas.map((r, i) => `<div class="aviso erro linha" style="margin-top:10px"><span style="flex:1"><b>${esc(r.arquivo)}</b> não foi aceito. ${esc(r.texto)}</span>${r.faturaId ? `<button class="btn peq" data-verfat="${esc(r.faturaId)}">Ver fatura</button>` : ''}<button class="btn peq" data-okrec="${i}">OK</button></div>`).join('')}
     <div id="fila"></div>`;
   const drop = $('#drop'), inp = $('#arq');
   inp.onchange = () => { importar([...inp.files]); inp.value = ''; };
@@ -814,6 +815,8 @@ function telaNova(app) {
   drop.addEventListener('drop', e => importar([...e.dataTransfer.files].filter(f => /pdf$/i.test(f.type) || /\.pdf$/i.test(f.name))));
   $('#bManual').onclick = () => { fila.unshift({ id: novoId(), arquivo: 'Preenchimento manual', conta: contaVazia(), clienteId: '', venc: vencPadrao() }); render(); };
   const bt = $('#bTodas'); if (bt) bt.onclick = gerarTodas;
+  app.querySelectorAll('[data-okrec]').forEach(b => b.onclick = () => { recusadas.splice(+b.dataset.okrec, 1); render(); });
+  app.querySelectorAll('[data-verfat]').forEach(b => b.onclick = () => abrirFatura(b.dataset.verfat));
   const box = $('#fila');
   fila.forEach(item => box.appendChild(cartaoConta(item)));
 }
@@ -825,6 +828,12 @@ async function importar(arquivos) {
     fila.unshift(item); render();
     try {
       item.conta = await lerPdf(a); sincronizarInjecoes(item.conta);
+      const d = duplicidade(item);
+      if (d) { // não aceita conta em duplicidade
+        fila.splice(fila.indexOf(item), 1);
+        recusadas.unshift({ arquivo: a.name, texto: d.texto, faturaId: d.fatura ? d.fatura.id : '' });
+        toast(`${a.name} não foi aceito: conta em duplicidade.`, 5000); render(); continue;
+      }
       const c = acharCliente(item.conta.uc); item.clienteId = c ? c.id : '';
       if (!c) item.novoCli = NOVO_CLI();
     } catch (e) { console.error(e); item.erro = e.message || String(e); }
@@ -834,12 +843,28 @@ async function importar(arquivos) {
 
 function clienteDoItem(item) { return item.clienteId ? S.clientes.find(c => c.id === item.clienteId) : null; }
 function existente(item) { const k = item.conta; return S.faturas.find(f => soDig(f.cliente.uc) === soDig(k.uc) && f.conta.mesRef === +k.mesRef && f.conta.anoRef === +k.anoRef); }
+// Duplicidade: mesma UC no mesmo mês, ou a mesma nota fiscal da Energisa, já faturada ou já na fila
+function mesmaConta(a, b) {
+  if (!a || !b) return false;
+  const nfA = soDig(a.notaFiscal), nfB = soDig(b.notaFiscal);
+  if (nfA && nfB && nfA === nfB) return true;
+  return !!soDig(a.uc) && soDig(a.uc) === soDig(b.uc) && +a.mesRef === +b.mesRef && +a.anoRef === +b.anoRef;
+}
+function duplicidade(item) {
+  const k = item.conta; if (!k) return null;
+  const f = S.faturas.find(x => mesmaConta(x.conta, k));
+  if (f) return { texto: `Esta conta já foi faturada: fatura Nº ${f.numeroTxt} de ${f.cliente.nome} (UC ${f.cliente.uc}, ${refTxt(f.conta.mesRef, f.conta.anoRef)}).`, fatura: f };
+  const o = fila.find(x => x !== item && x.conta && !x.erro && mesmaConta(x.conta, k));
+  if (o) return { texto: `Esta conta já está na lista para faturar (${o.arquivo}).`, item: o };
+  return null;
+}
+const recusadas = [];
 
 function cartaoConta(item) {
   const el = document.createElement('div'); el.className = 'card conta';
   if (item.carregando) { el.innerHTML = `<span class="carregando"></span> Lendo <b>${esc(item.arquivo)}</b>…`; return el; }
   if (item.erro) { el.innerHTML = `<div class="linha"><b>${esc(item.arquivo)}</b><div class="esp"></div><button class="btn peq" data-x>Remover</button></div><div class="aviso erro">Não consegui ler este PDF: ${esc(item.erro)}</div>`; $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); }; return el; }
-  const k = item.conta; const cli = clienteDoItem(item); const dup = existente(item);
+  const k = item.conta; const cli = clienteDoItem(item); const dupl = duplicidade(item);
   if (!cli && !item.novoCli) item.novoCli = NOVO_CLI();
   if (cli && item.regraCli !== cli.id) { item.regra = { modelo: cli.modelo || 'percentual_creditos', desconto: +cli.desconto || 0, descontoGD2: cli.descontoGD2 != null && cli.descontoGD2 !== '' ? +cli.descontoGD2 : +cli.desconto || 0, precoKwh: +cli.precoKwh || 0, incluirEnergisa: !!cli.incluirEnergisa }; item.regraCli = cli.id; }
   const regra = cli ? item.regra : item.novoCli;
@@ -849,7 +874,7 @@ function cartaoConta(item) {
   el.innerHTML = `
     <div class="conta-cab"><div><div class="t">${cli ? esc(cli.nome) : '<span style="color:var(--red)">Cliente ainda não identificado</span>'}</div><div class="m">${esc(refTxt(k.mesRef, k.anoRef))} · UC ${esc(k.uc || '—')} · Titular da conta: ${esc(k.nome || '—')} · ${esc(item.arquivo)}</div></div><div class="esp"></div><button class="btn peq" data-x>Descartar</button></div>
     ${(k.avisos || []).map(a => `<div class="aviso">${esc(a)}</div>`).join('')}
-    ${dup ? `<div class="aviso">Já existe a fatura ${esc(dup.numeroTxt)} para esta UC em ${esc(refTxt(k.mesRef, k.anoRef))}. Gerar de novo vai substituí-la (mantendo o número).</div>` : ''}
+    ${dupl ? `<div class="aviso erro linha"><span style="flex:1"><b>Conta em duplicidade.</b> ${esc(dupl.texto)} Não é possível gerar outra fatura para ela.</span>${dupl.fatura ? `<button class="btn peq" data-verdup>Ver fatura</button>` : ''}</div>` : ''}
     <div class="cols">
       <div>
         <div class="secao">Dados lidos da conta (confira)</div>
@@ -889,10 +914,11 @@ function cartaoConta(item) {
         <div data-calc>${calcHtml(V)}</div>
         ${(() => { const ps = escolherPix(emp(), { ...k, titular: k.nome }); return ps ? `<div class="aviso ok" style="margin-top:12px">Pix desta fatura: <b>${esc(ps.chave)}</b> · ${esc(ps.nome)}${ps.porTitular ? ' (chave do titular da conta)' : ' (chave da empresa)'}</div>` : `<div class="aviso" style="margin-top:12px">Nenhuma chave Pix para esta conta. Cadastre em <a href="#empresa">Minha empresa</a>.</div>`; })()}
         <label class="campo" style="margin-top:12px">Vencimento da sua fatura<input data-venc value="${esc(item.venc)}" placeholder="dd/mm/aaaa"></label>
-        <button class="btn pri" data-gerar style="width:100%;justify-content:center;margin-top:12px">${dup ? 'Gerar de novo' : 'Gerar fatura'}</button>
+        <button class="btn pri" data-gerar style="width:100%;justify-content:center;margin-top:12px" ${dupl ? 'disabled' : ''}>${dupl ? 'Já faturada' : 'Gerar fatura'}</button>
       </div>
     </div>`;
   $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); };
+  const vd = $('[data-verdup]', el); if (vd && dupl && dupl.fatura) vd.onclick = () => abrirFatura(dupl.fatura.id);
   el.querySelectorAll('[data-k]').forEach(i => i.addEventListener('change', () => {
     const ch = i.dataset.k; let v = i.value;
     if (['consumoKwh', 'compensadoKwh', 'anoRef', 'mesRef', 'totalConta', 'valorCreditos', 'tarifaConsumo', 'ajusteGD'].includes(ch)) v = parseBR(v) || 0;
@@ -1016,7 +1042,9 @@ async function gerar(item, silencioso = false) {
       await salvar('clientes', id, dados); cli = { id, ...dados }; item.clienteId = id;
     }
     const titular = k.nome || (ucsDe(cli).find(u => soDig(u.uc) === soDig(k.uc)) || {}).titular || '';
-    const E = emp(); const dup = existente(item);
+    const dupl = duplicidade(item);
+    if (dupl) { toast('Conta em duplicidade: ' + dupl.texto, 6000); return false; }
+    const E = emp(); const dup = null;
     const numero = dup ? dup.numero : (+E.proximoNumero || 1);
     const numeroTxt = String(numero).padStart(6, '0');
     const V = calcular(k, cli);

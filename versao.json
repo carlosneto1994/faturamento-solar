@@ -1,10 +1,10 @@
 {
-  "versao": "1.1.4",
-  "notas": "Leitura mais robusta das linhas de energia injetada (kWh, tarifa e valor preenchidos sozinhos).",
+  "versao": "1.1.5",
+  "notas": "Contas em duplicidade são recusadas com aviso.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.4/FaturamentoSolar.exe",
-      "sha256": "a434ed589caf7f8157bac038af36acde51c5f6cb7e5f93d0bdfa1f7d93adba79"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.1.5/FaturamentoSolar.exe",
+      "sha256": "632b7c0cae22ae674d1f5a79eaf146bc32cc690fcd72db448db624aef3df8c19"
     }
   }
 }

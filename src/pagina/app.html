@@ -105,6 +105,9 @@ tr.click:hover td{background:#f8faf9}
 .carregando{display:inline-block;width:14px;height:14px;border:2px solid #cfd8d4;border-top-color:var(--pri);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px}
 @keyframes g{to{transform:rotate(360deg)}}
 .oculto{display:none!important}
+.versao{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 10px;white-space:nowrap}
+.versao.nova{background:var(--pri-soft);color:var(--pri-2);border-color:#bfe0d5;cursor:pointer}
+.versao:empty{display:none}
 table.inj td{padding:5px 6px}table.inj th{padding:6px}
 table.inj input,table.inj select{border:1px solid var(--line);border-radius:7px;padding:5px 7px;background:#fff;font-size:13px}
 table.inj tr.tot-inj td{border-bottom:none}
@@ -127,6 +130,7 @@ table.inj tr.tot-inj td{border-bottom:none}
 <div id="faixaAtual" class="faixa ok oculto"></div>
 <header class="topo"><div class="in">
   <div class="marca" id="marca"><div class="sol">☀</div><span>Faturamento Solar</span></div>
+  <span id="versao" class="versao" title="Versão do programa"></span>
   <nav id="nav">
     <a href="#painel" data-r="painel">Painel</a>
     <a href="#faturas" data-r="faturas">Faturas</a>
@@ -196,7 +200,7 @@ async function iniciarLocal() {
     toast('Salvo em ' + r.caminho, 5000); return { status: 'saved' };
   } };
   setInterval(() => fetch('/api/ping', { method: 'POST' }).catch(() => {}), 20000); fetch('/api/ping', { method: 'POST' }).catch(() => {});
-  setTimeout(checarAtualizacao, 6000); setInterval(checarAtualizacao, 60000);
+  checarAtualizacao(); setTimeout(checarAtualizacao, 6000); setInterval(checarAtualizacao, 60000);
   aplicarMarca(); render();
 }
 // Atualização automática (programa instalado)
@@ -209,7 +213,15 @@ async function checarAtualizacao() {
       f.classList.remove('oculto'); $('#bReini').onclick = reiniciarPrograma;
     } else f.classList.add('oculto');
     const v = $('#verProg'); if (v) v.innerHTML = textoVersao(a);
+    mostrarVersao(a);
   } catch (e) {}
+}
+function mostrarVersao(a) {
+  const el = $('#versao'); if (!el) return;
+  if (!S.local) { el.textContent = 'Versão online'; el.className = 'versao'; return; }
+  if (!a) return;
+  if (a.status === 'pronta') { el.textContent = `Versão ${a.versao} → ${a.nova} pronta`; el.className = 'versao nova'; el.onclick = reiniciarPrograma; el.title = 'Clique para reiniciar na versão nova'; }
+  else { el.textContent = `Versão ${a.versao}` + (a.status === 'baixando' ? ' · baixando atualização…' : ''); el.className = 'versao'; el.onclick = () => { location.hash = 'empresa'; }; el.title = a.checado ? 'Última verificação: ' + a.checado : 'Versão do programa'; }
 }
 function textoVersao(a) {
   if (!a) return '';
@@ -237,7 +249,7 @@ async function iniciarDados() {
     faixa('Atenção: o armazenamento na nuvem não está disponível nesta visualização. Os dados ficam só neste navegador e podem ser perdidos.');
     render(); return;
   }
-  S.db = db; S.nuvem = true;
+  S.db = db; S.nuvem = true; mostrarVersao(null);
   const timer = setTimeout(() => { if (!(S.pronto.c && S.pronto.f && S.pronto.e)) faixa('Não consegui carregar os dados ainda. Verifique sua conexão.'); }, 10000);
   const pronto = () => { if (S.pronto.c && S.pronto.f && S.pronto.e) { clearTimeout(timer); faixa(''); } render(); };
   const erro = e => { faixa('Erro ao acessar os dados (' + (e && e.code || 'desconhecido') + '). Recarregue a página.'); };

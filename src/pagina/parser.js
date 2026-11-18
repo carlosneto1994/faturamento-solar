@@ -50,18 +50,38 @@ function lerContaEnergisa(paginas) {
   // UC
   let m;
 
-  // Referência, vencimento e total
-  m = tudo.match(new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*(\\d{4})', 'i'));
-  if (m) { r.mesRef = MESES.indexOf(m[1].toLowerCase()) + 1; r.anoRef = +m[2]; }
-  // O mês de referência certo é o da linha "Mês / Ano  vencimento  R$ total" (o texto da conta pode citar outros meses)
+  // Referência, vencimento e total.
+  // O mês de referência é o que fica no quadro "REF: MÊS / ANO | VENCIMENTO | TOTAL A PAGAR".
+  // A conta pode citar outros meses (bandeira, avisos), então escolhemos o mês mais perto desse quadro.
   const reMes = new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*(\\d{4})', 'i');
-  const linhaRef = T.find(t => reMes.test(t) && /\d{2}\/\d{2}\/\d{4}/.test(t) && /R\$/.test(t)) || T.find(t => reMes.test(t) && /R\$/.test(t));
-  if (linhaRef) { const mm = linhaRef.match(reMes); r.mesRef = MESES.indexOf(mm[1].toLowerCase()) + 1; r.anoRef = +mm[2]; }
-  if (linhaRef) {
-    const d = linhaRef.match(/(\d{2}\/\d{2}\/\d{4})/); r.vencimento = d ? d[1] : '';
-    const v = linhaRef.match(/R\$\s*([\d.]+,\d{2})/); r.totalConta = v ? num(v[1]) : null;
+  const reMesG = new RegExp('(' + MESES.join('|') + ')\\s*\\/\\s*(\\d{4})', 'gi');
+  m = tudo.match(/TOTAL:\s*([\d.]+,\d{2})/); const totalItens = m ? num(m[1]) : null;
+  const fmtTot = v => v == null ? null : v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const totTxt = fmtTot(totalItens);
+  // linha-âncora: tem "R$ <total>" (ou R$ + data de vencimento)
+  const ancora = linhas.find(l => totTxt && new RegExp('R\\$\\s*' + totTxt.replace(/\./g, '\\.')).test(l.texto))
+    || linhas.find(l => /R\$\s*[\d.]+,\d{2}/.test(l.texto) && /\d{2}\/\d{2}\/\d{4}/.test(l.texto) && reMes.test(l.texto))
+    || linhas.find(l => /R\$\s*[\d.]+,\d{2}/.test(l.texto) && /\d{2}\/\d{2}\/\d{4}/.test(l.texto));
+  const candidatos = [];
+  linhas.forEach(l => { let mm; reMesG.lastIndex = 0; while ((mm = reMesG.exec(l.texto))) candidatos.push({ l, mes: MESES.indexOf(mm[1].toLowerCase()) + 1, ano: +mm[2], ruim: /bandeira|a partir|reajuste|vigência|vigencia|aviso|leitura/i.test(l.texto) }); });
+  let escolhido = null;
+  if (candidatos.length) {
+    const dist = c => (ancora ? (c.l.pagina === ancora.pagina ? Math.abs(c.l.y - ancora.y) : 9999) : 0) + (c.ruim ? 500 : 0) + (c.l.texto === (ancora && ancora.texto) ? -1 : 0);
+    escolhido = candidatos.slice().sort((a, b) => dist(a) - dist(b))[0];
+    r.mesRef = escolhido.mes; r.anoRef = escolhido.ano;
   }
-  if (r.totalConta == null) { m = tudo.match(/TOTAL:\s*([\d.]+,\d{2})/); if (m) r.totalConta = num(m[1]); }
+  const linhaRef = ancora ? ancora.texto : (escolhido ? escolhido.l.texto : null);
+  if (ancora) {
+    // vencimento: a data na linha-âncora ou na linha do mês escolhido
+    const dt = ancora.texto.match(/(\d{2}\/\d{2}\/\d{4})/) || (escolhido && escolhido.l.texto.match(/(\d{2}\/\d{2}\/\d{4})/));
+    r.vencimento = dt ? dt[1] : '';
+    const v = ancora.texto.match(/R\$\s*([\d.]+,\d{2})/); r.totalConta = v ? num(v[1]) : null;
+  }
+  if (!r.vencimento) { // procura uma data perto da âncora
+    const perto = linhas.filter(l => ancora && l.pagina === ancora.pagina && Math.abs(l.y - ancora.y) < 25 && /\d{2}\/\d{2}\/\d{4}/.test(l.texto) && !/\d{2}:\d{2}|protocolo|autoriza|emiss|leitura|apresenta/i.test(l.texto)).sort((a, b) => Math.abs(a.y - ancora.y) - Math.abs(b.y - ancora.y));
+    const dt = perto.length ? perto[0].texto.match(/(\d{2}\/\d{2}\/\d{4})/) : null; if (dt) r.vencimento = dt[1];
+  }
+  if (r.totalConta == null) r.totalConta = totalItens;
 
   // Leituras (anterior, atual, dias, próxima)
   m = tudo.match(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}\/\d{2}\/\d{4})\s+(\d{1,3})\s+(\d{2}\/\d{2}\/\d{4})/);

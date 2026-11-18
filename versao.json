@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.0",
-  "notas": "Nova aba Avisos: vencimentos da Energisa e dos clientes, alertas no computador e no WhatsApp.",
+  "versao": "1.2.1",
+  "notas": "Mês de referência e vencimento lidos pelo quadro do total a pagar.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.0/FaturamentoSolar.exe",
-      "sha256": "378ccb67a72987dccf23814e44bfd38fee0f1efcde3761006978440d62d83c04"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.1/FaturamentoSolar.exe",
+      "sha256": "cfc0c86f40e25107893c017069df714d71b27f18ade41e0d49ed1dc5563f26a1"
     }
   }
 }

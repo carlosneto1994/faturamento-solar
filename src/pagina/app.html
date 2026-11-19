@@ -353,10 +353,11 @@ function calcular(conta, cli) {
   const semUsina = r2(totalConta + creditos - ajuste);
   const comUsina = r2(totalConta + valorUsina);
   const economia = r2(semUsina - comUsina);
-  const incluir = !!cli.incluirEnergisa;
+  const somenteAcordado = !!cli.somenteAcordado; // cliente paga a própria conta: fatura só com o valor acordado
+  const incluir = !somenteAcordado && !!cli.incluirEnergisa;
   const valorCobrado = r2(valorUsina + (incluir ? totalConta : 0));
   const descontoPct = modelo === 'preco_kwh' ? null : (base ? descontoValor / base : descGD(cli, 'GD I'));
-  return { modelo, kwh, creditos, base, grupos, descontoPct, precoKwh: modelo === 'preco_kwh' ? +cli.precoKwh || 0 : null, descontoValor, valorUsina, totalConta, semUsina, comUsina, economia, economiaPct: semUsina ? economia / semUsina : 0, incluirEnergisa: incluir, valorCobrado };
+  return { modelo, kwh, creditos, base, grupos, descontoPct, precoKwh: modelo === 'preco_kwh' ? +cli.precoKwh || 0 : null, descontoValor, valorUsina, totalConta, semUsina, comUsina, economia, economiaPct: semUsina ? economia / semUsina : 0, incluirEnergisa: incluir, somenteAcordado, valorCobrado };
 }
 // Texto do desconto: "15%" ou "GD I 15% · GD II 12%"
 function textoDesconto(V) {
@@ -496,7 +497,10 @@ async function desenharFatura(fat) {
   rr(X0, y, W, 20, 3, '#fff6dc');
   g.fillStyle = '#f2a900'; g.beginPath(); g.arc(mm(X0 + 11), mm(y + 10), mm(6), 0, Math.PI * 2); g.fill();
   txt('☀', X0 + 11, y + 12.4, { pt: 13, w: 700, cor: '#fff', al: 'center' });
-  if (V.economia > 0) {
+  const SO = !!V.somenteAcordado;
+  if (SO) {
+    txt(V.kwh > 0 ? `Energia limpa fornecida pela nossa usina: ${fmtN(V.kwh)} kWh neste mês` : 'Neste mês não houve energia fornecida pela usina', X0 + 21, y + 12.5, { pt: 11, w: 700, cor: '#3d2a00' });
+  } else if (V.economia > 0) {
     txt('Neste mês você economizou', X0 + 21, y + 7.5, { pt: 8, w: 500, cor: '#6b4a00' });
     txt(fmtR(V.economia), X0 + 21, y + 15.5, { pt: 15, w: 800, cor: '#3d2a00' });
     const wEco = largura(fmtR(V.economia), 15, 800);
@@ -504,7 +508,7 @@ async function desenharFatura(fat) {
   } else {
     txt(V.base > 0 ? 'Energia limpa gerada pela nossa usina' : 'Neste mês não houve energia injetada pela usina nesta conta', X0 + 21, y + 12.5, { pt: 11, w: 700, cor: '#3d2a00' });
   }
-  if (fat.economiaAcumulada > 0) {
+  if (!SO && fat.economiaAcumulada > 0) {
     txt('Economia acumulada', X1 - 5, y + 7.5, { pt: 7, w: 600, cor: '#6b4a00', al: 'right' });
     txt(fmtR(fat.economiaAcumulada), X1 - 5, y + 15, { pt: 11.5, w: 800, cor: '#3d2a00', al: 'right' });
   }
@@ -512,6 +516,12 @@ async function desenharFatura(fat) {
   // Comparativo (esquerda) e histórico (direita)
   y = 125;
   const colW = (W - 8) / 2; const xh = X0 + colW + 8;
+  if (SO) {
+    txt('ENERGIA FORNECIDA', X0, y, { pt: 7, w: 700, cor: '#5d6b65' });
+    txt(fmtN(V.kwh) + ' kWh', X0, y + 13, { pt: 20, w: 800, cor });
+    txt(V.modelo === 'preco_kwh' ? `Preço acordado: ${fmtR(V.precoKwh)} por kWh` : `Valor com desconto de ${fmtP(V.descontoPct)} sobre a energia injetada`, X0, y + 21, { pt: 8.3, w: 600 });
+    txt((K.leituraAnterior && K.leituraAtual) ? `Período: ${K.leituraAnterior} a ${K.leituraAtual}` : '', X0, y + 27.5, { pt: 7.6, cor: '#5d6b65' });
+  } else {
   txt('QUANTO VOCÊ PAGARIA', X0, y, { pt: 7, w: 700, cor: '#5d6b65' });
   const maxV = Math.max(V.semUsina, V.comUsina, 1); const barW = colW - 24;
   const barra = (yy, rotulo, partes, total) => {
@@ -523,6 +533,7 @@ async function desenharFatura(fat) {
   barra(y + 22, 'Com a usina', [[V.totalConta, '#7d8b85'], [V.valorUsina, cor]], V.comUsina);
   const leg = (x, yy, c, t) => { g.fillStyle = c; g.fillRect(mm(x), mm(yy - 2.6), mm(2.8), mm(2.8)); txt(t, x + 4, yy, { pt: 6.8, cor: '#5d6b65' }); };
   leg(X0, y + 35, '#7d8b85', 'Conta da distribuidora'); leg(X0 + 38, y + 35, cor, V.incluirEnergisa ? 'Energia da usina com desconto' : 'Energia da usina (esta fatura)');
+  }
 
   txt('HISTÓRICO DE CONSUMO (kWh)', xh, y, { pt: 7, w: 700, cor: '#5d6b65' });
   const hist = (K.historico || []).slice(-12);
@@ -546,7 +557,9 @@ async function desenharFatura(fat) {
   txt('Valor', X1 - 3, y + 4.8, { pt: 7.2, w: 700, cor: corMedia, al: 'right' });
   y += 7;
   const linhas = [];
-  if (V.modelo === 'preco_kwh') {
+  if (SO) {
+    linhas.push([V.modelo === 'preco_kwh' ? `Energia fornecida pela usina (preço acordado ${fmtR(V.precoKwh)}/kWh)` : `Energia fornecida pela usina (com desconto de ${fmtP(V.descontoPct)})`, fmtN(V.kwh) + ' kWh', fmtR(V.valorUsina), '#15211c', 600]);
+  } else if (V.modelo === 'preco_kwh') {
     linhas.push(['Energia injetada compensada (valor na conta)', fmtN(V.kwh) + ' kWh', fmtR(V.creditos), '#5d6b65']);
     linhas.push([`Energia da usina a ${fmtR(V.precoKwh)}/kWh`, fmtN(V.kwh) + ' kWh', fmtR(V.valorUsina), '#15211c', 600]);
   } else if (!(V.base > 0)) {
@@ -577,21 +590,24 @@ async function desenharFatura(fat) {
   txt('TOTAL A PAGAR', X0 + 3, y + 7, { pt: 9.5, w: 800 });
   txt(fmtR(V.valorCobrado), X1 - 3, y + 7.3, { pt: 12.5, w: 800, cor, al: 'right' });
   y += 10;
-  if (!V.incluirEnergisa) txt(cortar(`A conta da distribuidora (${fmtR(V.totalConta)}, vencimento ${K.vencimento || '—'}) é paga diretamente à ${K.distribuidora || 'distribuidora'} e não está incluída nesta fatura.`, W - 6, 7, 400), X0 + 3, y + 3, { pt: 7, cor: '#5d6b65' });
+  if (!V.incluirEnergisa && !SO) txt(cortar(`A conta da distribuidora (${fmtR(V.totalConta)}, vencimento ${K.vencimento || '—'}) é paga diretamente à ${K.distribuidora || 'distribuidora'} e não está incluída nesta fatura.`, W - 6, 7, 400), X0 + 3, y + 3, { pt: 7, cor: '#5d6b65' });
 
   // Resumo da conta (esquerda) e Pix (direita)
   y = Math.max(y + (V.incluirEnergisa ? 5 : 9), 232);
   const hB = Math.min(47, 280 - y);
   rr(X0, y, colW, hB, 3, null, '#dfe5e2');
-  txt('RESUMO DA CONTA DA DISTRIBUIDORA', X0 + 5, y + 7, { pt: 6.6, w: 700, cor: '#5d6b65' });
-  const res = [
+  txt(SO ? 'RESUMO' : 'RESUMO DA CONTA DA DISTRIBUIDORA', X0 + 5, y + 7, { pt: 6.6, w: 700, cor: '#5d6b65' });
+  const res = SO ? [
+    ['Referência', refTxt(K.mesRef, K.anoRef)], ['Unidade consumidora', C.uc || K.uc || '—'],
+    ['Energia fornecida', fmtN(V.kwh) + ' kWh'], ['Valor por kWh', V.kwh ? fmtR(V.valorUsina / V.kwh) : '—'], ['Vencimento desta fatura', fat.vencimento || '—']
+  ] : [
     ['Consumo do mês', fmtN(K.consumoKwh) + ' kWh'], ['Energia compensada pela usina', fmtN(K.compensadoKwh) + ' kWh'],
     ['Valor da conta', fmtR(K.totalConta)], ['Vencimento da conta', K.vencimento || '—'],
     ['Saldo de créditos', K.saldoKwh != null ? fmtN(K.saldoKwh) + ' kWh' : '—']
   ];
-  const naoComp = Math.round((+K.consumoKwh || 0) - (+K.compensadoKwh || 0));
+  const naoComp = SO ? 0 : Math.round((+K.consumoKwh || 0) - (+K.compensadoKwh || 0));
   if (naoComp > 0) res.splice(2, 0, ['Consumo não compensado (pago na conta)', fmtN(naoComp) + ' kWh']);
-  if (+K.ajusteGD) res.splice(naoComp > 0 ? 4 : 3, 0, ['Ajuste GD II (Fio B, Lei 14.300)', fmtR(K.ajusteGD)]);
+  if (!SO && +K.ajusteGD) res.splice(naoComp > 0 ? 4 : 3, 0, ['Ajuste GD II (Fio B, Lei 14.300)', fmtR(K.ajusteGD)]);
   if (V.incluirEnergisa && res.length > 6) res.splice(res.findIndex(r => r[0] === 'Vencimento da conta'), 1);
   const passo = Math.min(7.2, (hB - 18) / (res.length - 1));
   res.forEach(([k, v], i) => { const yy = y + 14 + i * passo; txt(k, X0 + 5, yy, { pt: 7.4, cor: '#5d6b65' }); txt(v, X0 + colW - 5, yy, { pt: 7.6, w: 600, al: 'right' }); if (i < res.length - 1) ln(X0 + 5, yy + passo * 0.38, X0 + colW - 5, yy + passo * 0.38, '#f0f3f2'); });
@@ -823,7 +839,7 @@ async function abrirFatura(id, dado) {
     const nomeC = nome1 ? nome1.charAt(0) + nome1.slice(1).toLowerCase() : '';
     const msg = `Olá${nomeC ? ', ' + nomeC : ''}! Segue sua fatura de energia solar de ${refTxt(f.conta.mesRef, f.conta.anoRef)}.\n\n` +
       (f.calculo.kwh > 0 ? `Energia compensada: ${fmtN(f.calculo.kwh)} kWh\n` : 'Neste mês não houve energia injetada.\n') + `Valor: ${fmtR(f.calculo.valorCobrado)}\nVencimento: ${f.vencimento}\n` +
-      (f.calculo.economia > 0 ? `Sua economia este mês: ${fmtR(f.calculo.economia)}\n` : '') +
+      (f.calculo.economia > 0 && !f.calculo.somenteAcordado ? `Sua economia este mês: ${fmtR(f.calculo.economia)}\n` : '') +
       (f.pix ? `\nPix copia e cola:\n${f.pix}\n` : '') + `\n${E.nome}`;
     try { await navigator.clipboard.writeText(msg); toast('Mensagem copiada. É só colar no WhatsApp junto com a imagem.'); } catch (e) { mostrarTexto('Mensagem para o cliente', msg); }
   };
@@ -929,7 +945,7 @@ function cartaoConta(item) {
   if (item.erro) { el.innerHTML = `<div class="linha"><b>${esc(item.arquivo)}</b><div class="esp"></div><button class="btn peq" data-x>Remover</button></div><div class="aviso erro">Não consegui ler este PDF: ${esc(item.erro)}</div>`; $('[data-x]', el).onclick = () => { fila.splice(fila.indexOf(item), 1); render(); }; return el; }
   const k = item.conta; const cli = clienteDoItem(item); const dupl = duplicidade(item);
   if (!cli && !item.novoCli) item.novoCli = NOVO_CLI();
-  if (cli && item.regraCli !== cli.id) { item.regra = { modelo: cli.modelo || 'percentual_creditos', desconto: +cli.desconto || 0, descontoGD2: cli.descontoGD2 != null && cli.descontoGD2 !== '' ? +cli.descontoGD2 : +cli.desconto || 0, precoKwh: +cli.precoKwh || 0, incluirEnergisa: !!cli.incluirEnergisa }; item.regraCli = cli.id; }
+  if (cli && item.regraCli !== cli.id) { item.regra = { modelo: cli.modelo || 'percentual_creditos', desconto: +cli.desconto || 0, descontoGD2: cli.descontoGD2 != null && cli.descontoGD2 !== '' ? +cli.descontoGD2 : +cli.desconto || 0, precoKwh: +cli.precoKwh || 0, incluirEnergisa: !!cli.incluirEnergisa, somenteAcordado: !!cli.somenteAcordado }; item.regraCli = cli.id; }
   const regra = cli ? item.regra : item.novoCli;
   const cliCalc = cli ? { ...cli, ...item.regra } : item.novoCli;
   const V = calcular(k, cliCalc);
@@ -1037,12 +1053,12 @@ function calcHtml(V) {
           ${V.incluirEnergisa ? `<div class="l"><span>Conta da distribuidora</span><span>${fmtR(V.totalConta)}</span></div>` : ''}
           <div class="l tot"><span>Valor da fatura</span><span>${fmtR(V.valorCobrado)}</span></div>
         </div>
-        <div class="calc" style="margin-top:10px">
+        ${V.somenteAcordado ? '<div class="aviso ok" style="margin-top:10px">A fatura vai sair só com o valor acordado. O cliente paga a própria conta da Energisa, e ela não aparece na fatura.</div>' : `<div class="calc" style="margin-top:10px">
           <div class="l"><span>Sem a usina o cliente pagaria</span><span>${fmtR(V.semUsina)}</span></div>
           <div class="l"><span>Com a usina paga (distribuidora + você)</span><span>${fmtR(V.comUsina)}</span></div>
           <div class="l ${V.economia >= 0 ? 'eco' : 'neg'}"><span>Economia do cliente</span><span>${fmtR(V.economia)} (${fmtP(V.economiaPct)})</span></div>
-        </div>
-        ${V.economia < 0 ? '<div class="aviso erro">Com essa regra o cliente pagaria mais do que sem a usina. Revise o desconto.</div>' : ''}`;
+        </div>`}
+        ${V.economia < 0 && !V.somenteAcordado ? '<div class="aviso erro">Com essa regra o cliente pagaria mais do que sem a usina. Revise o desconto.</div>' : ''}`;
 }
 function camposDesconto(c, grande, soGD1) {
   const st = grande ? ' style="font-size:18px;font-weight:700"' : '';
@@ -1055,7 +1071,8 @@ function formRegra(c, p, soGD1) {
   return `<div class="grade g2" data-form="${p}">
     <label class="campo" style="grid-column:1/-1">Regra<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}" style="font-size:18px;font-weight:700"></label>` : camposDesconto(c, true, soGD1)}
-    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Somar o valor da conta da Energisa na fatura</label>
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="somenteAcordado" ${c.somenteAcordado ? 'checked' : ''}> Fatura só com o valor acordado (o cliente paga a própria conta da Energisa)</label>
+    ${c.somenteAcordado ? '' : `<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Somar o valor da conta da Energisa na fatura</label>`}
   </div>`;
 }
 function formCliente(c, p, semRegra) {
@@ -1067,7 +1084,8 @@ function formCliente(c, p, semRegra) {
     <label class="campo">E-mail<input data-c="email" value="${esc(c.email || '')}"></label>
     ${semRegra ? '' : `<label class="campo" style="grid-column:1/-1">Regra de cobrança<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}"></label>` : camposDesconto(c, false, true)}
-    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Incluir o valor da conta da Energisa nesta fatura (o cliente paga tudo para você)</label>`}
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Incluir o valor da conta da Energisa nesta fatura (o cliente paga tudo para você)</label>
+    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="somenteAcordado" ${c.somenteAcordado ? 'checked' : ''}> Fatura só com o valor acordado (o cliente paga a própria conta da Energisa)</label>`}
   </div>`;
 }
 function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
@@ -1077,7 +1095,7 @@ function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
     if (i.type === 'checkbox') c[k] = i.checked;
     else if (k === 'desconto' || k === 'descontoGD2' || k === 'precoKwh') c[k] = parseBR(i.value) || 0;
     else c[k] = i.value.trim();
-    if (k === 'modelo' && aoMudar) aoMudar();
+    if ((k === 'modelo' || k === 'somenteAcordado') && aoMudar) aoMudar();
     else if (['desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa'].includes(k)) (aoDigitar || aoMudar || (() => {}))();
   }));
   if (aoDigitar) f.querySelectorAll('[data-c="desconto"],[data-c="descontoGD2"],[data-c="precoKwh"]').forEach(i => i.addEventListener('input', () => { c[i.dataset.c] = parseBR(i.value) || 0; aoDigitar(); }));
@@ -1093,7 +1111,7 @@ async function gerar(item, silencioso = false) {
     const outroDono = acharCliente(k.uc);
     if (outroDono && (!cli || outroDono.id !== cli.id)) { toast(`A UC ${k.uc} já pertence a ${outroDono.nome}. Escolha esse cliente ou desvincule a UC no cadastro.`, 5000); return false; }
     if (cli) {
-      const mudou = item.regra && ['modelo', 'desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa'].some(c => (cli[c] ?? '') !== (item.regra[c] ?? '') && !(c === 'incluirEnergisa' && !!cli[c] === !!item.regra[c]) && !(c !== 'modelo' && c !== 'incluirEnergisa' && +cli[c] === +item.regra[c]));
+      const mudou = item.regra && ['modelo', 'desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa', 'somenteAcordado'].some(c => (cli[c] ?? '') !== (item.regra[c] ?? '') && !((c === 'incluirEnergisa' || c === 'somenteAcordado') && !!cli[c] === !!item.regra[c]) && !(c !== 'modelo' && c !== 'incluirEnergisa' && c !== 'somenteAcordado' && +cli[c] === +item.regra[c]));
       const vincular = !temUc(cli, k.uc);
       if (mudou || vincular) {
         const { id, ...resto } = cli; const novo = { ...resto, ...(item.regra || {}) };
@@ -1102,7 +1120,7 @@ async function gerar(item, silencioso = false) {
       }
     } else {
       const n = item.novoCli; if (!n || !n.nome) { toast('Informe o nome do cliente.'); return false; }
-      const id = novoId(); const dados = { nome: n.nome, documento: n.documento || '', uc: k.uc, ucs: [{ uc: k.uc, titular: k.nome || '' }], endereco: n.endereco || '', telefone: n.telefone || '', email: n.email || '', modelo: n.modelo || 'percentual_creditos', desconto: +n.desconto || 0, descontoGD2: n.descontoGD2 != null && n.descontoGD2 !== '' ? +n.descontoGD2 : +n.desconto || 0, precoKwh: +n.precoKwh || 0, incluirEnergisa: !!n.incluirEnergisa, criadoEm: dataBR(new Date()) };
+      const id = novoId(); const dados = { nome: n.nome, documento: n.documento || '', uc: k.uc, ucs: [{ uc: k.uc, titular: k.nome || '' }], endereco: n.endereco || '', telefone: n.telefone || '', email: n.email || '', modelo: n.modelo || 'percentual_creditos', desconto: +n.desconto || 0, descontoGD2: n.descontoGD2 != null && n.descontoGD2 !== '' ? +n.descontoGD2 : +n.desconto || 0, precoKwh: +n.precoKwh || 0, incluirEnergisa: !!n.incluirEnergisa, somenteAcordado: !!n.somenteAcordado, criadoEm: dataBR(new Date()) };
       await salvar('clientes', id, dados); cli = { id, ...dados }; item.clienteId = id;
     }
     const titular = k.nome || (ucsDe(cli).find(u => soDig(u.uc) === soDig(k.uc)) || {}).titular || '';

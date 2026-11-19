@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.2",
-  "notas": "PDF da conta da Energisa fica anexado à fatura.",
+  "versao": "1.2.3",
+  "notas": "Opção de fatura só com o valor acordado (cliente paga a própria conta da Energisa).",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.2/FaturamentoSolar.exe",
-      "sha256": "20275ab24303a57c739a067f22d0c777235959c54c35883b905e0f20faa5ace8"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.3/FaturamentoSolar.exe",
+      "sha256": "4234a14b6f62d8a249493e3fa91471df8975f007d2b910aad89844110c5fe76f"
     }
   }
 }

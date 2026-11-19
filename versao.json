@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.5",
-  "notas": "Avisos: diagnóstico quando a verificação falha e registro de erros mais completo.",
+  "versao": "1.2.6",
+  "notas": "Avisos sem PowerShell: faixa na tela do programa e janela do Windows na verificação diária.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.5/FaturamentoSolar.exe",
-      "sha256": "7ad1320a7a3288b789845fb0243dfbf3afd4f58fc7ec44a0e70b86ed2e6d841b"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.6/FaturamentoSolar.exe",
+      "sha256": "5478335a1a091d0303c870c94192511356bc347a359edafbfcf204b8748f04b8"
     }
   }
 }

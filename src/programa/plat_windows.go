@@ -118,23 +118,18 @@ func escXML(s string) string {
 	return r.Replace(s)
 }
 
-// Notificação do Windows (canto da tela). Usa o PowerShell, que já vem no Windows 10/11.
+// Aviso no Windows sem PowerShell (só a janela nativa do Windows, que antivírus não bloqueiam).
+// Com o programa aberto, o aviso aparece na própria tela do programa (faixa no topo e aba Avisos).
+// Só na verificação diária com o programa fechado é que aparece esta janela.
 func notificarWindows(titulo, corpo string) error {
-	xml := `<toast scenario="reminder"><visual><binding template="ToastGeneric"><text>` + escXML(titulo) + `</text><text>` + escXML(corpo) + `</text></binding></visual><actions><action content="OK" arguments="ok" activationType="system"/></actions></toast>`
-	ps := `$ErrorActionPreference='Stop';` +
-		`[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null;` +
-		`[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null;` +
-		`$x = New-Object Windows.Data.Xml.Dom.XmlDocument; $x.LoadXml('` + strings.ReplaceAll(xml, "'", "''") + `');` +
-		`$t = [Windows.UI.Notifications.ToastNotification]::new($x);` +
-		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($t)`
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
-	defer cancel()
-	if err := oculto(exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", ps)).Run(); err != nil {
-		log.Println("notificação do Windows falhou:", err)
-		// sem notificação: mostra uma janela de aviso
-		go caixa(titulo+"\n\n"+corpo, "Faturamento Solar - Avisos", mbOK|mbIconInfo|0x40000) // MB_TOPMOST
-		time.Sleep(200 * time.Millisecond)
-		return err
+	if !modoTarefa {
+		log.Println("[aviso na tela]", titulo)
+		return nil
+	}
+	if caixa(titulo+"\n\n"+corpo+"\n\nAbrir o Faturamento Solar agora?", "Faturamento Solar - Avisos", mbYesNo|mbIconInfo|0x40000) == idYes {
+		if caminhoExe != "" {
+			_ = exec.Command(caminhoExe).Start()
+		}
 	}
 	return nil
 }
@@ -142,6 +137,10 @@ func notificarWindows(titulo, corpo string) error {
 // Tarefa agendada do Windows: roda "FaturamentoSolar.exe --avisos" todo dia no horário escolhido
 // (se o computador estiver desligado no horário, roda assim que ligar).
 func agendarTarefa(horario string) error {
+	marca := filepath.Join(pastaBase, "agenda.txt")
+	if b, err := os.ReadFile(marca); err == nil && string(b) == horario+"|"+caminhoExe {
+		return nil // já agendado com este horário
+	}
 	exe := caminhoExe
 	if exe == "" {
 		return nil
@@ -185,5 +184,7 @@ func agendarTarefa(horario string) error {
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
 	}
+	_ = os.WriteFile(marca, []byte(horario+"|"+caminhoExe), 0o644)
+	log.Println("verificação diária agendada às", horario)
 	return nil
 }

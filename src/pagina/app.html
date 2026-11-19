@@ -134,6 +134,7 @@ table.inj tr.tot-inj td{border-bottom:none}
 <body>
 <div id="faixa" class="faixa oculto"></div>
 <div id="faixaAtual" class="faixa ok oculto"></div>
+<div id="faixaAvisos" class="faixa oculto"></div>
 <header class="topo"><div class="in">
   <div class="marca" id="marca"><div class="sol">☀</div><span>Faturamento Solar</span></div>
   <span id="versao" class="versao" title="Versão do programa"></span>
@@ -669,6 +670,17 @@ const ROTAS = ['painel', 'faturas', 'nova', 'avisos', 'clientes', 'empresa'];
 let rota = 'painel';
 function pendencias() { return fila.filter(i => !i.erro).length; }
 window.addEventListener('beforeunload', e => { if (pendencias() || empresaPendente) { e.preventDefault(); e.returnValue = ''; } });
+let avisosDispensados = '';
+function faixaAvisos() {
+  const f = $('#faixaAvisos'); if (!f) return;
+  let itens = []; try { itens = listaAvisos(+cfgAv().diasAntes || 3); } catch (e) {}
+  const chave = itens.map(a => a.f.id + a.tipo).join(',');
+  if (!itens.length || chave === avisosDispensados || rota === 'avisos') { f.classList.add('oculto'); return; }
+  const pagar = itens.filter(a => a.tipo === 'energisa'), receber = itens.filter(a => a.tipo === 'cliente'), atras = itens.filter(a => a.dias < 0).length;
+  const partes = []; if (pagar.length) partes.push(`${pagar.length} conta(s) da Energisa para pagar`); if (receber.length) partes.push(`${receber.length} fatura(s) para receber`);
+  f.innerHTML = `⚠ ${partes.join(' e ')} vencendo em até ${+cfgAv().diasAntes || 3} dias${atras ? ` (${atras} atrasada${atras > 1 ? 's' : ''})` : ''}. <a class="btn pri" href="#avisos">Ver avisos</a><button class="btn" id="bDispAv">Depois</button>`;
+  f.classList.remove('oculto'); $('#bDispAv').onclick = () => { avisosDispensados = chave; f.classList.add('oculto'); };
+}
 function atualizarNav() {
   const a = document.querySelector('#nav a[data-r="nova"]'); if (a) { const n = pendencias(); a.innerHTML = 'Nova fatura' + (n ? ` <span class="badge b-aberta">${n}</span>` : ''); }
   const v = document.querySelector('#nav a[data-r="avisos"]'); if (v) { let n = 0; try { n = contarAvisos(); } catch (e) {} v.innerHTML = 'Avisos' + (n ? ` <span class="badge b-atrasada">${n}</span>` : ''); }
@@ -689,7 +701,7 @@ document.addEventListener('focusout', () => { if (renderAdiado) setTimeout(() =>
 function render() {
   if (renderPendente) return; renderPendente = true;
   requestAnimationFrame(() => {
-    renderPendente = false; atualizarNav();
+    renderPendente = false; atualizarNav(); faixaAvisos();
     const ativo = document.activeElement;
     if (ativo && ativo.matches && ativo.matches('#app input,#app textarea,#app select') && ativo.type !== 'file' && rota !== 'faturas' && rota !== 'clientes' && rota !== 'painel' && rota !== 'avisos') { renderAdiado = true; return; } // não atrapalhar quem digita
     const app = $('#app');
@@ -1445,7 +1457,7 @@ function telaAvisos(app) {
           <label class="campo">Avisar com antecedência de (dias)<input id="avDias" type="number" min="1" max="15" value="${esc(d)}"></label>
           <label class="campo">Horário da verificação diária<input id="avHora" type="time" value="${esc(c.horario)}"></label>
         </div>
-        <p class="pequeno">Avisa ${d} dia(s) antes, no dia do vencimento e quando atrasar, uma vez só cada. A verificação roda todo dia no horário escolhido, mesmo com o programa fechado. Se o computador estiver desligado, ela roda quando ligar.</p>
+        <p class="pequeno">Avisa ${d} dia(s) antes, no dia do vencimento e quando atrasar, uma vez só cada. Com o programa aberto, o aviso aparece numa faixa no topo. Todo dia, no horário escolhido, o computador verifica mesmo com o programa fechado e mostra uma janela de aviso. Se o computador estiver desligado nesse horário, a verificação roda quando ligar.</p>
         <div class="secao">WhatsApp (opcional)</div>
         <div class="grade g2">
           <label class="campo">Seu número com DDD<input id="avNum" value="${esc(c.whatsNumero)}" placeholder="(83) 99999-0000"></label>
@@ -1485,8 +1497,8 @@ function telaAvisos(app) {
   };
   const salvarCfg = async () => { await salvarEmpresa({ avisos: ler() }); const r = await chamar('/api/avisos/agendar', 'Agendar a verificação diária'); registrar('avisos', 'configuração salva; agenda: ' + r.agenda); return r; };
   $('#avSalvar').onclick = async () => { try { const r = await salvarCfg(); res(r.agenda === 'ok' ? `✓ Salvo. Verificação diária às ${esc(r.horario)}.` : `Salvo, mas não consegui agendar a verificação diária: ${esc(r.agenda)}`); } catch (e) { res(esc(e.message)); } };
-  $('#avTeste').onclick = async () => { res('<span class="carregando"></span> Enviando teste…'); try { await salvarCfg(); const r = await chamar('/api/avisos/testar', 'Enviar teste'); res(`Notificação no computador: ${r.windows === 'ok' ? '✓ enviada' : esc(r.windows)}<br>WhatsApp: ${r.whats === 'ok' ? '✓ enviado, confira no celular' : esc(r.whats)}`); registrar('avisos', `teste: windows=${r.windows} whatsapp=${r.whats}`); } catch (e) { res(esc(e.message)); } };
-  $('#avAgora').onclick = async () => { res('<span class="carregando"></span> Verificando…'); try { await salvarCfg(); const r = await chamar('/api/avisos/executar', 'Verificar agora'); res(r.novos ? `${r.novos} aviso(s) enviado(s). Computador: ${esc(r.windows)} · WhatsApp: ${esc(r.whats)}` : `Nenhum aviso novo para enviar agora (os que já foram enviados não repetem). WhatsApp: ${esc(r.whats)}`); } catch (e) { res(esc(e.message)); } };
+  $('#avTeste').onclick = async () => { res('<span class="carregando"></span> Enviando teste…'); try { await salvarCfg(); const r = await chamar('/api/avisos/testar', 'Enviar teste'); res(`Aviso na tela do programa: ✓ (faixa amarela no topo e aba Avisos)<br>WhatsApp: ${r.whats === 'ok' ? '✓ enviado, confira no celular' : esc(r.whats)}`); registrar('avisos', `teste: windows=${r.windows} whatsapp=${r.whats}`); } catch (e) { res(esc(e.message)); } };
+  $('#avAgora').onclick = async () => { res('<span class="carregando"></span> Verificando…'); try { await salvarCfg(); const r = await chamar('/api/avisos/executar', 'Verificar agora'); res(r.novos ? `${r.novos} aviso(s) novo(s). WhatsApp: ${esc(r.whats === 'ok' ? 'enviado ✓' : r.whats)}` : `Nenhum aviso novo para enviar agora (os que já foram enviados não repetem). WhatsApp: ${esc(r.whats)}`); } catch (e) { res(esc(e.message)); } };
 }
 async function marcarEnergisa(f, paga) {
   const { id, ...d } = f;

@@ -394,7 +394,10 @@ func cicloAvisos() {
 }
 
 // Modo usado pela tarefa agendada do Windows: verifica e sai
+var modoTarefa bool
+
 func modoAvisos() {
+	modoTarefa = true
 	c := http.Client{Timeout: 5 * time.Minute}
 	if jaRodando() {
 		if r, err := c.Post("http://"+porta+"/api/avisos/executar", "text/plain", nil); err == nil {

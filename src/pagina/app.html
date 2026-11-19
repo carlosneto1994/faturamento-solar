@@ -105,6 +105,10 @@ tr.click:hover td{background:#f8faf9}
 .carregando{display:inline-block;width:14px;height:14px;border:2px solid #cfd8d4;border-top-color:var(--pri);border-radius:50%;animation:g .8s linear infinite;vertical-align:-2px}
 @keyframes g{to{transform:rotate(360deg)}}
 .oculto{display:none!important}
+.tipos{display:flex;flex-direction:column;gap:6px}
+.tipo{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;background:#fff}
+.tipo:hover{border-color:#bfcac5}.tipo.on{border-color:var(--pri);background:var(--pri-soft)}
+.tipo input{margin-top:3px;accent-color:var(--pri)}.tipo span{display:flex;flex-direction:column}.tipo small{color:var(--muted);font-size:12px}
 .b-energ{background:#fdeee4;color:#a8461c}
 .b-receb{background:#e7f0fb;color:#1f5fa8}
 .versao{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:3px 10px;white-space:nowrap}
@@ -813,6 +817,9 @@ async function abrirFatura(id, dado) {
         <div class="l tot"><span>Total</span><span>${fmtR(f.calculo.valorCobrado)}</span></div>
         <div class="l eco"><span>Economia do cliente</span><span>${fmtR(f.calculo.economia)}</span></div>
       </div>
+      <div class="secao" style="margin-top:0">O que sai nesta fatura</div>
+      ${seletorTipo(f.calculo, 'tipoFat')}
+      <button class="btn" id="bTipo" style="margin:8px 0 12px">Aplicar nesta fatura</button>
       ${f.calculo.modelo !== 'preco_kwh' ? (() => { const gs = f.calculo.grupos || []; const g1 = gs.find(g => g.gd === 'GD I'), g2 = gs.find(g => g.gd === 'GD II'); const d1 = (g1 || gs[0] || { descontoPct: f.calculo.descontoPct || 0 }).descontoPct; void g2;
         return `<div class="linha" style="gap:6px;margin-bottom:10px;align-items:flex-end"><label class="campo" style="flex:1">Desconto desta fatura (%)<input id="iDesc" inputmode="decimal" value="${esc(numBR(d1 * 100))}"></label><button class="btn" id="bDesc">Aplicar</button></div>`; })() : ''}
       <div class="calc" style="margin:0 0 10px;padding:10px 12px"><div class="pequeno" style="font-weight:700;margin-bottom:6px">📎 Conta da Energisa (PDF)</div>
@@ -848,8 +855,14 @@ async function abrirFatura(id, dado) {
     const d1 = e1 ? parseBR(e1.value) : parseBR(e2.value), d2 = e2 ? parseBR(e2.value) : d1;
     if ([d1, d2].some(d => d == null || d < 0 || d > 100)) return toast('Informe um desconto entre 0 e 100.');
     bd.disabled = true;
-    try { const nf = await recalcularFatura(f, { modelo: f.calculo.modelo, desconto: d1, descontoGD2: d2, incluirEnergisa: f.calculo.incluirEnergisa }); ov.remove(); toast('Desconto atualizado nesta fatura.'); abrirFatura(nf.id, nf); }
+    try { const nf = await recalcularFatura(f, { modelo: f.calculo.modelo, desconto: d1, descontoGD2: d2, precoKwh: f.calculo.precoKwh || 0, incluirEnergisa: f.calculo.incluirEnergisa, somenteAcordado: !!f.calculo.somenteAcordado }); ov.remove(); toast('Desconto atualizado nesta fatura.'); abrirFatura(nf.id, nf); }
     catch (e) { bd.disabled = false; erroGravar(e); }
+  };
+  ov.querySelectorAll('input[name="tipoFat"]').forEach(r => r.onchange = () => ov.querySelectorAll('.tipo').forEach(l => l.classList.toggle('on', l.contains(r) && r.checked)));
+  $('#bTipo', ov).onclick = async () => {
+    const t = (ov.querySelector('input[name="tipoFat"]:checked') || {}).value; if (!t) return;
+    const regra = { modelo: f.calculo.modelo, desconto: (f.calculo.descontoPct || 0) * 100, precoKwh: f.calculo.precoKwh || 0 }; aplicarTipo(regra, t);
+    try { const nf = await recalcularFatura(f, regra); ov.remove(); toast('Fatura atualizada.'); registrar('fatura', `Nº ${f.numeroTxt}: tipo alterado para ${t}`); abrirFatura(nf.id, nf); } catch (e) { erroGravar(e); }
   };
   const ia = $('#iAnexo', ov); if (ia) ia.onchange = async () => {
     const arq = ia.files[0]; if (!arq) return;
@@ -988,11 +1001,13 @@ function cartaoConta(item) {
       </div>
       <div>
         <div class="secao">Desconto deste cliente</div>
-        ${formRegra(regra, 'rg', true)}
+        ${formRegra(regra, 'rg', true, true)}
         <div class="secao">Cálculo</div>
         <div data-calc>${calcHtml(V)}</div>
         ${(() => { const ps = escolherPix(emp(), { ...k, titular: k.nome }); return ps ? `<div class="aviso ok" style="margin-top:12px">Pix desta fatura: <b>${esc(ps.chave)}</b> · ${esc(ps.nome)}${ps.porTitular ? ' (chave do titular da conta)' : ' (chave da empresa)'}</div>` : `<div class="aviso" style="margin-top:12px">Nenhuma chave Pix para esta conta. Cadastre em <a href="#empresa">Minha empresa</a>.</div>`; })()}
         <label class="campo" style="margin-top:12px">Vencimento da sua fatura<input data-venc value="${esc(item.venc)}" placeholder="dd/mm/aaaa"></label>
+        <div class="secao">O que sai nesta fatura</div>
+        ${seletorTipo(regra, 'tipo-' + item.id)}
         <button class="btn pri" data-gerar style="width:100%;justify-content:center;margin-top:12px" ${dupl ? 'disabled' : ''}>${dupl ? 'Já faturada' : 'Gerar fatura'}</button>
       </div>
     </div>`;
@@ -1020,6 +1035,7 @@ function cartaoConta(item) {
   });
   el.querySelectorAll('[data-rminj]').forEach(b => b.onclick = () => { k.injecoes.splice(+b.dataset.rminj, 1); sincronizarInjecoes(k); redesenhar(); });
   const ai = $('[data-addinj]', el); if (ai) ai.onclick = () => { (k.injecoes || (k.injecoes = [])).push({ gd: 'GD I', origem: '', kwh: 0, tarifa: (k.injecoes[0] && k.injecoes[0].tarifa) || 0, valor: 0 }); sincronizarInjecoes(k); redesenhar(); };
+  el.querySelectorAll('input[name="tipo-' + item.id + '"]').forEach(r => r.onchange = () => { aplicarTipo(regra, r.value); redesenhar(); });
   $('[data-cli]', el).onchange = e => { item.clienteId = e.target.value; redesenhar(); };
   $('[data-venc]', el).onchange = e => { item.venc = e.target.value; };
   ligarFormCliente(el, 'nc', item.novoCli, redesenhar);
@@ -1067,12 +1083,24 @@ function camposDesconto(c, grande, soGD1) {
   return `<label class="campo">Desconto GD I (%)<input data-c="desconto" inputmode="decimal" value="${esc(numBR(c.desconto))}"${st}></label>
     <label class="campo">Desconto GD II (%)<input data-c="descontoGD2" inputmode="decimal" value="${esc(numBR(v2))}"${st}></label>`;
 }
-function formRegra(c, p, soGD1) {
+// Tipo de fatura: completa (energia + conta Energisa), só a energia, ou só o valor acordado
+const TIPOS_FATURA = [
+  ['completa', 'Energia com desconto + conta da Energisa', 'Você recebe tudo e paga a Energisa.'],
+  ['energia', 'Só a energia, mostrando a conta da Energisa', 'O cliente paga a Energisa; a fatura mostra a economia.'],
+  ['acordado', 'Só o valor acordado', 'O cliente paga a própria conta; a Energisa não aparece.'],
+];
+const tipoDe = c => c.somenteAcordado ? 'acordado' : (c.incluirEnergisa ? 'completa' : 'energia');
+function aplicarTipo(c, t) { c.somenteAcordado = t === 'acordado'; c.incluirEnergisa = t === 'completa'; }
+function seletorTipo(c, nome) {
+  const atual = tipoDe(c);
+  return `<div class="tipos">${TIPOS_FATURA.map(([v, t, d]) => `<label class="tipo ${atual === v ? 'on' : ''}"><input type="radio" data-tipo name="${nome}" value="${v}" ${atual === v ? 'checked' : ''}><span><b>${t}</b><small>${d}</small></span></label>`).join('')}</div>`;
+}
+function formRegra(c, p, soGD1, semTipo) {
   return `<div class="grade g2" data-form="${p}">
     <label class="campo" style="grid-column:1/-1">Regra<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}" style="font-size:18px;font-weight:700"></label>` : camposDesconto(c, true, soGD1)}
-    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="somenteAcordado" ${c.somenteAcordado ? 'checked' : ''}> Fatura só com o valor acordado (o cliente paga a própria conta da Energisa)</label>
-    ${c.somenteAcordado ? '' : `<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Somar o valor da conta da Energisa na fatura</label>`}
+    ${semTipo ? '' : `<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="somenteAcordado" ${c.somenteAcordado ? 'checked' : ''}> Fatura só com o valor acordado (o cliente paga a própria conta da Energisa)</label>
+    ${c.somenteAcordado ? '' : `<label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Somar o valor da conta da Energisa na fatura</label>`}`}
   </div>`;
 }
 function formCliente(c, p, semRegra) {
@@ -1084,8 +1112,7 @@ function formCliente(c, p, semRegra) {
     <label class="campo">E-mail<input data-c="email" value="${esc(c.email || '')}"></label>
     ${semRegra ? '' : `<label class="campo" style="grid-column:1/-1">Regra de cobrança<select data-c="modelo">${Object.entries(MODELOS).map(([k, v]) => `<option value="${k}" ${c.modelo === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     ${c.modelo === 'preco_kwh' ? `<label class="campo">Preço por kWh (R$)<input data-c="precoKwh" inputmode="decimal" value="${esc(numBR(c.precoKwh))}"></label>` : camposDesconto(c, false, true)}
-    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="incluirEnergisa" ${c.incluirEnergisa ? 'checked' : ''}> Incluir o valor da conta da Energisa nesta fatura (o cliente paga tudo para você)</label>
-    <label class="chk" style="grid-column:1/-1"><input type="checkbox" data-c="somenteAcordado" ${c.somenteAcordado ? 'checked' : ''}> Fatura só com o valor acordado (o cliente paga a própria conta da Energisa)</label>`}
+    <div style="grid-column:1/-1"><div class="pequeno" style="font-weight:600;margin-bottom:6px">Padrão da fatura deste cliente (dá para trocar na hora de gerar)</div>${seletorTipo(c, 'tipoPadrao-' + p)}</div>`}
   </div>`;
 }
 function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
@@ -1098,6 +1125,7 @@ function ligarFormCliente(el, p, c, aoMudar, aoDigitar) {
     if ((k === 'modelo' || k === 'somenteAcordado') && aoMudar) aoMudar();
     else if (['desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa'].includes(k)) (aoDigitar || aoMudar || (() => {}))();
   }));
+  f.querySelectorAll('input[data-tipo]').forEach(r => r.addEventListener('change', () => { aplicarTipo(c, r.value); if (aoMudar) aoMudar(); }));
   if (aoDigitar) f.querySelectorAll('[data-c="desconto"],[data-c="descontoGD2"],[data-c="precoKwh"]').forEach(i => i.addEventListener('input', () => { c[i.dataset.c] = parseBR(i.value) || 0; aoDigitar(); }));
 }
 
@@ -1111,10 +1139,10 @@ async function gerar(item, silencioso = false) {
     const outroDono = acharCliente(k.uc);
     if (outroDono && (!cli || outroDono.id !== cli.id)) { toast(`A UC ${k.uc} já pertence a ${outroDono.nome}. Escolha esse cliente ou desvincule a UC no cadastro.`, 5000); return false; }
     if (cli) {
-      const mudou = item.regra && ['modelo', 'desconto', 'descontoGD2', 'precoKwh', 'incluirEnergisa', 'somenteAcordado'].some(c => (cli[c] ?? '') !== (item.regra[c] ?? '') && !((c === 'incluirEnergisa' || c === 'somenteAcordado') && !!cli[c] === !!item.regra[c]) && !(c !== 'modelo' && c !== 'incluirEnergisa' && c !== 'somenteAcordado' && +cli[c] === +item.regra[c]));
+      const mudou = item.regra && ['modelo', 'desconto', 'descontoGD2', 'precoKwh'].some(c => (cli[c] ?? '') !== (item.regra[c] ?? '') && !((c === 'incluirEnergisa' || c === 'somenteAcordado') && !!cli[c] === !!item.regra[c]) && !(c !== 'modelo' && c !== 'incluirEnergisa' && c !== 'somenteAcordado' && +cli[c] === +item.regra[c]));
       const vincular = !temUc(cli, k.uc);
       if (mudou || vincular) {
-        const { id, ...resto } = cli; const novo = { ...resto, ...(item.regra || {}) };
+        const { id, ...resto } = cli; const { incluirEnergisa: _i, somenteAcordado: _s, ...regraSemTipo } = item.regra || {}; const novo = { ...resto, ...regraSemTipo };
         if (vincular) { novo.ucs = [...ucsDe(cli), { uc: k.uc, titular: k.nome || '' }]; novo.uc = novo.ucs[0].uc; }
         await salvar('clientes', cli.id, novo); cli = { id: cli.id, ...novo };
       }
@@ -1129,7 +1157,7 @@ async function gerar(item, silencioso = false) {
     const E = emp(); const dup = null;
     const numero = dup ? dup.numero : (+E.proximoNumero || 1);
     const numeroTxt = String(numero).padStart(6, '0');
-    const V = calcular(k, cli);
+    const V = calcular(k, { ...cli, ...(item.regra && cli ? { incluirEnergisa: !!item.regra.incluirEnergisa, somenteAcordado: !!item.regra.somenteAcordado } : {}) });
     if (!(V.valorCobrado > 0)) { toast('Esta conta não tem energia injetada e a conta da Energisa não está incluída na fatura deste cliente: o valor ficaria zero.', 6000); return false; }
     const rk = refKey(k.mesRef, k.anoRef);
     const anteriores = S.faturas.filter(f => f.clienteId === cli.id && f.refKey < rk).reduce((s, f) => s + (f.calculo.economia || 0), 0);

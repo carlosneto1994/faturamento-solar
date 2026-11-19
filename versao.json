@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.3",
-  "notas": "Opção de fatura só com o valor acordado (cliente paga a própria conta da Energisa).",
+  "versao": "1.2.4",
+  "notas": "Escolha do que sai na fatura na hora de gerar (e padrão no cadastro do cliente).",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.3/FaturamentoSolar.exe",
-      "sha256": "4234a14b6f62d8a249493e3fa91471df8975f007d2b910aad89844110c5fe76f"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.4/FaturamentoSolar.exe",
+      "sha256": "b1a3350fa5a35b6b255be5712f08bde2db52d32bf688b2f62d85f6dea77d6c1e"
     }
   }
 }

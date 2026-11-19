@@ -1470,10 +1470,23 @@ function telaAvisos(app) {
   if (!S.local) return;
   const ler = () => ({ ativo: $('#avAtivo').checked, diasAntes: Math.min(15, Math.max(1, parseInt($('#avDias').value) || 3)), horario: $('#avHora').value || '08:00', whatsNumero: $('#avNum').value.trim(), whatsApikey: $('#avKey').value.trim() });
   const res = t => { avUltimo = t; const el = $('#avRes'); if (el) el.innerHTML = t; };
-  const salvarCfg = async () => { await salvarEmpresa({ avisos: ler() }); const r = await (await fetch('/api/avisos/agendar', { method: 'POST' })).json(); registrar('avisos', 'configuração salva; agenda: ' + r.agenda); return r; };
-  $('#avSalvar').onclick = async () => { try { const r = await salvarCfg(); res(r.agenda === 'ok' ? `✓ Salvo. Verificação diária às ${esc(r.horario)}.` : `Salvo, mas não consegui agendar a verificação diária: ${esc(r.agenda)}`); } catch (e) { erroGravar(e); } };
-  $('#avTeste').onclick = async () => { res('<span class="carregando"></span> Enviando teste…'); try { await salvarCfg(); const r = await (await fetch('/api/avisos/testar', { method: 'POST' })).json(); res(`Notificação no computador: ${r.windows === 'ok' ? '✓ enviada' : esc(r.windows)}<br>WhatsApp: ${r.whats === 'ok' ? '✓ enviado, confira no celular' : esc(r.whats)}`); registrar('avisos', `teste: windows=${r.windows} whatsapp=${r.whats}`); } catch (e) { res('Não consegui testar: ' + esc(e.message)); } };
-  $('#avAgora').onclick = async () => { res('<span class="carregando"></span> Verificando…'); try { await salvarCfg(); const r = await (await fetch('/api/avisos/executar', { method: 'POST' })).json(); res(r.novos ? `${r.novos} aviso(s) enviado(s). Computador: ${esc(r.windows)} · WhatsApp: ${esc(r.whats)}` : `Nenhum aviso novo para enviar agora (os que já foram enviados não repetem). WhatsApp: ${esc(r.whats)}`); } catch (e) { res('Não consegui verificar: ' + esc(e.message)); } };
+  // chamada ao programa com diagnóstico: se a conexão cair, verifica se o programa ainda está aberto
+  const chamar = async (url, etapa) => {
+    let r;
+    try { r = await fetch(url, { method: 'POST' }); }
+    catch (e) {
+      let vivo = false; try { vivo = (await (await fetch('/api/ping')).text()) === 'faturamento-solar'; } catch (e2) {}
+      const msg = `${etapa}: a conexão com o programa caiu (${e.message}). ${vivo ? 'O programa continua aberto.' : 'O programa parece ter fechado: abra de novo.'}`;
+      registrar('ERRO', 'avisos ' + msg); throw new Error(msg + ' Clique em "Relatar problema" no topo para me enviar o registro.');
+    }
+    const txt = await r.text(); let j = null; try { j = JSON.parse(txt); } catch (e) {}
+    if (!r.ok || !j) { const msg = `${etapa}: o programa respondeu ${r.status}${j && j.erro ? ' (' + j.erro + ')' : (!j ? ' (resposta inesperada: talvez a versão do programa seja antiga)' : '')}`; registrar('ERRO', 'avisos ' + msg); throw new Error(msg); }
+    return j;
+  };
+  const salvarCfg = async () => { await salvarEmpresa({ avisos: ler() }); const r = await chamar('/api/avisos/agendar', 'Agendar a verificação diária'); registrar('avisos', 'configuração salva; agenda: ' + r.agenda); return r; };
+  $('#avSalvar').onclick = async () => { try { const r = await salvarCfg(); res(r.agenda === 'ok' ? `✓ Salvo. Verificação diária às ${esc(r.horario)}.` : `Salvo, mas não consegui agendar a verificação diária: ${esc(r.agenda)}`); } catch (e) { res(esc(e.message)); } };
+  $('#avTeste').onclick = async () => { res('<span class="carregando"></span> Enviando teste…'); try { await salvarCfg(); const r = await chamar('/api/avisos/testar', 'Enviar teste'); res(`Notificação no computador: ${r.windows === 'ok' ? '✓ enviada' : esc(r.windows)}<br>WhatsApp: ${r.whats === 'ok' ? '✓ enviado, confira no celular' : esc(r.whats)}`); registrar('avisos', `teste: windows=${r.windows} whatsapp=${r.whats}`); } catch (e) { res(esc(e.message)); } };
+  $('#avAgora').onclick = async () => { res('<span class="carregando"></span> Verificando…'); try { await salvarCfg(); const r = await chamar('/api/avisos/executar', 'Verificar agora'); res(r.novos ? `${r.novos} aviso(s) enviado(s). Computador: ${esc(r.windows)} · WhatsApp: ${esc(r.whats)}` : `Nenhum aviso novo para enviar agora (os que já foram enviados não repetem). WhatsApp: ${esc(r.whats)}`); } catch (e) { res(esc(e.message)); } };
 }
 async function marcarEnergisa(f, paga) {
   const { id, ...d } = f;

@@ -3,7 +3,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -100,7 +102,7 @@ func desinstalar() {
 		time.Sleep(time.Second)
 	}
 	ps := `$n='Faturamento Solar.lnk'; foreach($d in @([Environment]::GetFolderPath('Desktop'),[Environment]::GetFolderPath('Programs'))){ $f=Join-Path $d $n; if(Test-Path $f){Remove-Item $f -Force} }`
-	_ = oculto(exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps)).Run()
+	_ = oculto(exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", ps)).Run()
 	_ = oculto(exec.Command("schtasks", "/Delete", "/F", "/TN", "Faturamento Solar Avisos")).Run()
 	_ = oculto(exec.Command("reg", "delete", `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\FaturamentoSolar`, "/f")).Run()
 	exe, _ := os.Executable()
@@ -125,7 +127,10 @@ func notificarWindows(titulo, corpo string) error {
 		`$x = New-Object Windows.Data.Xml.Dom.XmlDocument; $x.LoadXml('` + strings.ReplaceAll(xml, "'", "''") + `');` +
 		`$t = [Windows.UI.Notifications.ToastNotification]::new($x);` +
 		`[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe').Show($t)`
-	if err := oculto(exec.Command("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps)).Run(); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	if err := oculto(exec.CommandContext(ctx, "powershell", "-NoProfile", "-NonInteractive", "-Command", ps)).Run(); err != nil {
+		log.Println("notificação do Windows falhou:", err)
 		// sem notificação: mostra uma janela de aviso
 		go caixa(titulo+"\n\n"+corpo, "Faturamento Solar - Avisos", mbOK|mbIconInfo|0x40000) // MB_TOPMOST
 		time.Sleep(200 * time.Millisecond)
@@ -174,7 +179,9 @@ func agendarTarefa(horario string) error {
 		return err
 	}
 	defer os.Remove(arq)
-	out, err := oculto(exec.Command("schtasks", "/Create", "/F", "/TN", "Faturamento Solar Avisos", "/XML", arq)).CombinedOutput()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	out, err := oculto(exec.CommandContext(ctx, "schtasks", "/Create", "/F", "/TN", "Faturamento Solar Avisos", "/XML", arq)).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
 	}

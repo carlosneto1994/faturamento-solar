@@ -1,10 +1,10 @@
 {
-  "versao": "1.2.4",
-  "notas": "Escolha do que sai na fatura na hora de gerar (e padrão no cadastro do cliente).",
+  "versao": "1.2.5",
+  "notas": "Avisos: diagnóstico quando a verificação falha e registro de erros mais completo.",
   "arquivos": {
     "windows-amd64": {
-      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.4/FaturamentoSolar.exe",
-      "sha256": "b1a3350fa5a35b6b255be5712f08bde2db52d32bf688b2f62d85f6dea77d6c1e"
+      "url": "https://raw.githubusercontent.com/carlosneto1994/faturamento-solar/main/versoes/1.2.5/FaturamentoSolar.exe",
+      "sha256": "7ad1320a7a3288b789845fb0243dfbf3afd4f58fc7ec44a0e70b86ed2e6d841b"
     }
   }
 }

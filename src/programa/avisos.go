@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -269,6 +270,12 @@ type resultadoAvisos struct {
 
 // Envia os avisos que ainda não foram enviados. Chamar sem db.mu travado.
 func executarAvisos(origem string) resultadoAvisos {
+	log.Println("avisos: verificação iniciada (" + origem + ")")
+	defer func() {
+		if e := recover(); e != nil {
+			log.Printf("ERRO GRAVE nos avisos: %v\n%s", e, debug.Stack())
+		}
+	}()
 	db.mu.Lock()
 	cfg, empresa := lerCfgAvisos()
 	res := resultadoAvisos{}

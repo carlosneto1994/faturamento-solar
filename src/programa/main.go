@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -244,7 +245,7 @@ func main() {
 		}
 	}()
 	log.Println("iniciado versão", versaoAtual, "em", url, "dados em", pastaBase)
-	srv = &http.Server{Handler: protegido(mux), ReadHeaderTimeout: 10 * time.Second}
+	srv = &http.Server{Handler: recuperar(protegido(mux)), ReadHeaderTimeout: 10 * time.Second}
 	log.Println(srv.Serve(ln))
 	if reiniciando.Load() {
 		select {} // aguarda o os.Exit do reinício
@@ -517,4 +518,19 @@ func apiContaLer(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Disposition", `inline; filename="conta-`+id+`.pdf"`)
 	}
 	io.Copy(w, f)
+}
+
+// Se algo der errado numa chamada, registra o erro completo no registro.log em vez de derrubar a conexão
+func recuperar(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if e := recover(); e != nil {
+				log.Printf("ERRO GRAVE em %s %s: %v\n%s", r.Method, r.URL.Path, e, debug.Stack())
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(500)
+				json.NewEncoder(w).Encode(map[string]string{"erro": fmt.Sprint(e)})
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
 }
